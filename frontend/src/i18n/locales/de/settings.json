@@ -2333,6 +2333,21 @@
     "no_search_results": "Keine Einträge entsprechen deiner Suche.",
     "no_entries": "Keine globalen Glossar-Einträge. Füge Begriffe hinzu, die serienübergreifend konsistent übersetzt werden sollen."
   },
+  "glossary_presets": {
+    "title": "Vorschläge",
+    "help": "Fertige Begriffslisten für häufige Anime-Begriffe. Übernommene Begriffe landen im globalen Glossar und gelten nur für die jeweilige Zielsprache. Vorhandene Begriffe bleiben unverändert.",
+    "import_one": "{{count}} Begriff übernehmen",
+    "import_other": "{{count}} Begriffe übernehmen",
+    "all_imported": "Übernommen",
+    "term_count_one": "{{count}} Begriff",
+    "term_count_other": "{{count}} Begriffe",
+    "toast_imported": "{{added}} übernommen, {{skipped}} schon vorhanden",
+    "toast_import_failed": "Übernehmen fehlgeschlagen",
+    "name": {
+      "anime-en-de": "Anime (Englisch → Deutsch)",
+      "anime-de-en": "Anime (Deutsch → Englisch)"
+    }
+  },
   "backend_card": {
     "field_desc_name": "Anzeigename für dieses LLM-Backend",
     "field_desc_url": "Endpunkt der LLM-API, z.B. http://localhost:11434 für Ollama",

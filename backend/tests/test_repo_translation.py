@@ -283,19 +283,80 @@ class TestMergedGlossary:
         assert "GlobalOnly" in terms
         assert "SeriesOnly" in terms
 
-    def test_merged_glossary_max_30(self, repo):
-        """Merged glossary returns at most 30 entries."""
-        for i in range(20):
+    def test_merged_glossary_is_not_capped_at_30(self, repo):
+        """Every entry reaches the pipeline; the prompt picks the relevant ones.
+
+        The old cap kept the 30 most recently edited entries per scope, so a
+        series glossary of 40 terms silently lost ten — and which ten changed
+        with every edit. The prompt builder already keeps only terms that
+        occur in the batch, which is the filter that matters.
+        """
+        for i in range(40):
             repo.add_glossary_entry(
                 series_id=None, source_term=f"global{i:02d}", target_term=f"g{i:02d}"
             )
-        for i in range(20):
+        for i in range(40):
             repo.add_glossary_entry(
                 series_id=1, source_term=f"series{i:02d}", target_term=f"s{i:02d}"
             )
 
         result = repo.get_merged_glossary_for_series(1)
-        assert len(result) <= 30
+        assert len(result) == 80
+
+    def test_merged_glossary_lists_series_entries_first(self, repo):
+        """A later cut (glossary_max_terms) must drop global terms before series terms."""
+        repo.add_glossary_entry(series_id=None, source_term="GlobalOnly", target_term="NurGlobal")
+        repo.add_glossary_entry(series_id=1, source_term="SeriesOnly", target_term="NurSerie")
+
+        result = repo.get_merged_glossary_for_series(1)
+        assert [r["source_term"] for r in result] == ["SeriesOnly", "GlobalOnly"]
+
+    def test_merged_glossary_carries_approval(self, repo):
+        """A pending suggestion must stay recognisable so the prompt can skip it."""
+        repo.add_glossary_entry(series_id=1, source_term="Pending", target_term="Offen", approved=0)
+
+        result = repo.get_merged_glossary_for_series(1)
+        assert result[0]["approved"] == 0
+
+    def test_merged_glossary_filters_by_target_language(self, repo):
+        """An en → de term must not reach a translation into French."""
+        repo.add_glossary_entry(
+            series_id=None,
+            source_term="Demon Lord",
+            target_term="Dämonenfürst",
+            target_language="de",
+        )
+        repo.add_glossary_entry(
+            series_id=None, source_term="Hero", target_term="Héros", target_language="fr"
+        )
+        repo.add_glossary_entry(series_id=1, source_term="Rimuru", target_term="Rimuru")
+
+        result = repo.get_merged_glossary_for_series(1, target_language="de")
+        assert {r["source_term"] for r in result} == {"Demon Lord", "Rimuru"}
+
+    def test_global_glossary_filters_by_target_language(self, repo):
+        repo.add_glossary_entry(
+            series_id=None,
+            source_term="Demon Lord",
+            target_term="Dämonenfürst",
+            target_language="de",
+        )
+        repo.add_glossary_entry(
+            series_id=None,
+            source_term="Dämonenkönig",
+            target_term="Demon King",
+            target_language="en",
+        )
+        repo.add_glossary_entry(series_id=None, source_term="Kijin", target_term="Kijin")
+
+        result = repo.get_global_glossary(target_language="en")
+        assert {r["source_term"] for r in result} == {"Dämonenkönig", "Kijin"}
+
+    def test_target_language_is_stored_normalised(self, repo):
+        entry_id = repo.add_glossary_entry(
+            series_id=None, source_term="A", target_term="B", target_language="ger"
+        )
+        assert repo.get_glossary_entry(entry_id)["target_language"] == "de"
 
 
 # ---------------------------------------------------------------------------

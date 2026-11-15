@@ -30,6 +30,23 @@ from db.repositories.translation_cache import (  # noqa: F401 — re-exported fo
 logger = logging.getLogger(__name__)
 
 
+def _language_key(code):
+    """Normalise a language code for storage and comparison; None stays None."""
+    if not code or not str(code).strip():
+        return None
+    from config_language_data import normalize_language_code
+
+    return normalize_language_code(str(code).strip())
+
+
+def _language_filter(target_language):
+    """WHERE clauses for entries that apply to ``target_language``."""
+    key = _language_key(target_language)
+    if key is None:
+        return ()
+    return ((GlossaryEntry.target_language.is_(None)) | (GlossaryEntry.target_language == key),)
+
+
 def _read_key(series_id):
     """Series key whose glossary is read (pre-1.18 fallback for standalone keys)."""
     if series_id is None or series_id >= 0:
@@ -89,6 +106,7 @@ class TranslationRepository(BaseRepository, _TranslationCacheMixin):
         term_type: str = "other",
         confidence: float | None = None,
         approved: int = 1,
+        target_language: str | None = None,
     ) -> int:
         """Add a new glossary entry. Returns the entry ID.
 
@@ -102,6 +120,8 @@ class TranslationRepository(BaseRepository, _TranslationCacheMixin):
             term_type: Category — 'character', 'place', or 'other'.
             confidence: Float 0-1 set by LLM extractor; None for manual entries.
             approved: 1 for approved/manual entries, 0 for pending AI suggestions.
+            target_language: Language of target_term; None applies the entry to
+                every target language.
         """
         if series_id is not None and series_id < 0:
             from services.standalone_owner_keys import SERIES, claim
@@ -117,6 +137,7 @@ class TranslationRepository(BaseRepository, _TranslationCacheMixin):
             term_type=term_type,
             confidence=confidence,
             approved=approved,
+            target_language=_language_key(target_language),
             created_at=now,
             updated_at=now,
         )
@@ -151,59 +172,62 @@ class TranslationRepository(BaseRepository, _TranslationCacheMixin):
         rows = self.session.execute(stmt).all()
         return [{"source_term": r.source_term, "target_term": r.target_term} for r in rows]
 
-    def get_global_glossary(self) -> list[dict]:
+    def get_global_glossary(self, target_language: str | None = None) -> list[dict]:
         """Get all global glossary entries (series_id IS NULL).
+
+        Args:
+            target_language: When given, only entries for that language and
+                entries without a language.
 
         Returns:
             List of glossary entry dicts, ordered by source_term ascending.
         """
         stmt = (
             select(GlossaryEntry)
-            .where(GlossaryEntry.series_id.is_(None))
+            .where(GlossaryEntry.series_id.is_(None), *_language_filter(target_language))
             .order_by(GlossaryEntry.source_term.asc())
         )
         entries = self.session.execute(stmt).scalars().all()
         return [self._to_dict(e) for e in entries]
 
-    def get_merged_glossary_for_series(self, series_id: int) -> list[dict]:
+    def get_merged_glossary_for_series(
+        self, series_id: int, target_language: str | None = None
+    ) -> list[dict]:
         """Get merged glossary entries for a series (global + per-series).
 
         Per-series entries override global entries with the same source_term
-        (case-insensitive). Limited to 30 most recent entries per source.
+        (case-insensitive) and come first, so a later cut to
+        ``glossary_max_terms`` drops global terms before series terms. There
+        is no cap here: the prompt builder keeps only the terms that occur in
+        the batch, and a cap by recency silently dropped whichever terms had
+        not been edited lately.
 
         Returns:
-            List of {source_term, target_term} dicts, max 30 entries.
+            List of {source_term, target_term, approved} dicts.
         """
         series_id = _read_key(series_id)
-        # Global entries
-        global_stmt = (
-            select(GlossaryEntry.source_term, GlossaryEntry.target_term)
-            .where(GlossaryEntry.series_id.is_(None))
-            .order_by(GlossaryEntry.updated_at.desc())
-            .limit(30)
-        )
-        global_rows = self.session.execute(global_stmt).all()
-        global_dict = {
-            r.source_term.lower(): {"source_term": r.source_term, "target_term": r.target_term}
-            for r in global_rows
-        }
+        columns = (GlossaryEntry.source_term, GlossaryEntry.target_term, GlossaryEntry.approved)
+        language = _language_filter(target_language)
 
-        # Series-specific entries (override global on same source_term)
-        series_stmt = (
-            select(GlossaryEntry.source_term, GlossaryEntry.target_term)
-            .where(GlossaryEntry.series_id == series_id)
-            .order_by(GlossaryEntry.updated_at.desc())
-            .limit(30)
-        )
-        series_rows = self.session.execute(series_stmt).all()
-        series_dict = {
-            r.source_term.lower(): {"source_term": r.source_term, "target_term": r.target_term}
-            for r in series_rows
-        }
+        def _rows(scope):
+            stmt = (
+                select(*columns).where(scope, *language).order_by(GlossaryEntry.updated_at.desc())
+            )
+            return {
+                r.source_term.lower(): {
+                    "source_term": r.source_term,
+                    "target_term": r.target_term,
+                    "approved": r.approved,
+                }
+                for r in self.session.execute(stmt).all()
+            }
 
-        # Merge: global first, series overrides
-        merged = {**global_dict, **series_dict}
-        return list(merged.values())[:30]
+        series_dict = _rows(GlossaryEntry.series_id == series_id)
+        global_dict = _rows(GlossaryEntry.series_id.is_(None))
+        merged = dict(series_dict)
+        for key, entry in global_dict.items():
+            merged.setdefault(key, entry)
+        return list(merged.values())
 
     def _entry_for_write(self, entry_id: int):
         """The entry to change for ``entry_id``.

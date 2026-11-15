@@ -27,6 +27,8 @@ EXPECTED_URL_RULES = {
     ("/api/v1/glossary/<int:entry_id>", "PUT"),
     ("/api/v1/glossary/<int:entry_id>", "DELETE"),
     ("/api/v1/glossary/export", "GET"),
+    ("/api/v1/glossary/presets", "GET"),
+    ("/api/v1/glossary/presets/<preset_id>/import", "POST"),
     # Prompt presets
     ("/api/v1/prompt-presets", "GET"),
     ("/api/v1/prompt-presets", "POST"),

@@ -53,6 +53,8 @@ class GlossaryEntry(db.Model):
     term_type: Mapped[str] = mapped_column(Text, nullable=False, default="other")
     confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
     approved: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    # Language the target term is written in; NULL applies to every target.
+    target_language: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 

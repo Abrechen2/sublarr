@@ -124,6 +124,8 @@ export interface GlossaryEntry {
   term_type: 'character' | 'place' | 'other'
   confidence: number | null
   approved: number  // 0 or 1 (SQLite boolean)
+  /** Language of target_term; null applies the entry to every target language. */
+  target_language?: string | null
   created_at: string
   updated_at: string
 }
@@ -150,6 +152,25 @@ export async function createGlossaryEntry(entry: { series_id?: number | null; so
 
 export async function updateGlossaryEntry(entryId: number, entry: { source_term?: string; target_term?: string; notes?: string; term_type?: 'character' | 'place' | 'other'; confidence?: number | null; approved?: number }): Promise<GlossaryEntry> {
   const { data } = await api.put(`/glossary/${entryId}`, entry)
+  return data
+}
+
+export interface GlossaryPreset {
+  id: string
+  name: string
+  description: string
+  source_language: string
+  target_language: string
+  entries: { source_term: string; target_term: string }[]
+}
+
+export async function getGlossaryPresets(): Promise<{ presets: GlossaryPreset[] }> {
+  const { data } = await api.get('/glossary/presets')
+  return data
+}
+
+export async function importGlossaryPreset(presetId: string): Promise<{ added: number; skipped: number }> {
+  const { data } = await api.post(`/glossary/presets/${encodeURIComponent(presetId)}/import`)
   return data
 }
 

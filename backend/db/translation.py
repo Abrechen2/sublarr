@@ -35,6 +35,7 @@ def add_glossary_entry(
     term_type: str = "other",
     confidence: float | None = None,
     approved: int = 1,
+    target_language: str | None = None,
 ) -> int:
     """Add a new glossary entry. Returns the entry ID.
 
@@ -48,6 +49,7 @@ def add_glossary_entry(
         term_type: Category — 'character', 'place', or 'other'.
         confidence: Float 0-1 set by LLM extractor; None for manual entries.
         approved: 1 for approved/manual entries, 0 for pending AI suggestions.
+        target_language: Language of target_term; None applies to every target.
     """
     return _get_repo().add_glossary_entry(
         series_id,
@@ -57,6 +59,7 @@ def add_glossary_entry(
         term_type=term_type,
         confidence=confidence,
         approved=approved,
+        target_language=target_language,
     )
 
 
@@ -67,14 +70,14 @@ def get_glossary_entries(series_id: int | None = None) -> list:
     return _get_repo().get_glossary_entries(series_id)
 
 
-def get_global_glossary() -> list:
-    """Get all global glossary entries (series_id IS NULL)."""
-    return _get_repo().get_global_glossary()
+def get_global_glossary(target_language: str | None = None) -> list:
+    """Get global glossary entries (series_id IS NULL), optionally for one target language."""
+    return _get_repo().get_global_glossary(target_language)
 
 
-def get_merged_glossary_for_series(series_id: int) -> list:
+def get_merged_glossary_for_series(series_id: int, target_language: str | None = None) -> list:
     """Get merged glossary entries for a series (global + per-series, series overrides)."""
-    return _get_repo().get_merged_glossary_for_series(series_id)
+    return _get_repo().get_merged_glossary_for_series(series_id, target_language)
 
 
 def get_glossary_for_series(series_id: int) -> list:

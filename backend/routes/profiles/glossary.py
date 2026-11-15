@@ -257,3 +257,76 @@ def export_glossary_tsv():
         mimetype="text/tab-separated-values; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@bp.route("/glossary/presets", methods=["GET"])
+def list_glossary_presets():
+    """List the bundled glossary suggestions.
+    ---
+    get:
+      security:
+        - apiKeyAuth: []
+      tags:
+        - Profiles
+      summary: List glossary presets
+      description: >
+        Bundled term lists (for example anime terms English → German) the user
+        can import into the global glossary. Nothing is applied until imported.
+      responses:
+        200:
+          description: Presets with their entries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  presets:
+                    type: array
+                    items:
+                      type: object
+    """
+    from services.glossary_presets_service import list_presets
+
+    return jsonify({"presets": list_presets()})
+
+
+@bp.route("/glossary/presets/<preset_id>/import", methods=["POST"])
+def import_glossary_preset(preset_id):
+    """Import a bundled preset into the global glossary.
+    ---
+    post:
+      security:
+        - apiKeyAuth: []
+      tags:
+        - Profiles
+      summary: Import a glossary preset
+      description: >
+        Adds the preset's terms as approved global entries for its target
+        language. Terms already in the glossary are kept unchanged.
+      parameters:
+        - in: path
+          name: preset_id
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: Import result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  added:
+                    type: integer
+                  skipped:
+                    type: integer
+        404:
+          description: Unknown preset
+    """
+    from services.glossary_presets_service import UnknownPresetError, import_preset
+
+    try:
+        return jsonify(import_preset(preset_id))
+    except UnknownPresetError:
+        return jsonify({"error": f"Unknown glossary preset: {preset_id}"}), 404

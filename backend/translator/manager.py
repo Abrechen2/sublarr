@@ -70,7 +70,7 @@ def _translate_with_manager(lines, source_lang, target_lang, arr_context=None, s
 
     _backend_name, fallback_chain = _resolve_backend_for_context(arr_context, target_lang)
 
-    glossary_entries = _load_glossary_entries(series_id)
+    glossary_entries = _load_glossary_entries(series_id, target_lang)
 
     # --- Translation memory cache lookup ---
     cache_enabled, similarity_threshold = _get_cache_config()
@@ -132,11 +132,18 @@ def _translate_with_manager(lines, source_lang, target_lang, arr_context=None, s
     return output, result
 
 
-def _load_glossary_entries(series_id):
+def _load_glossary_entries(series_id, target_lang=None):
     """Load glossary entries (global + per-series) if glossary is enabled.
+
+    Pending suggestions (``approved == 0``) are left out here, not later:
+    DeepL and Google build native glossaries from these entries without
+    looking at the flag, and before 2026-11 both paths here dropped it, so a
+    pending suggestion was applied as if it had been accepted.
 
     Args:
         series_id: Optional Sonarr series ID for per-series glossary
+        target_lang: Target language; entries written for another language
+            are left out, entries without a language always apply
 
     Returns:
         list[dict] | None: Glossary entries or None if disabled/unavailable
@@ -149,31 +156,27 @@ def _load_glossary_entries(series_id):
         if series_id:
             from db.translation import get_merged_glossary_for_series
 
-            entries = get_merged_glossary_for_series(series_id)
-            if entries:
-                max_terms = getattr(_get_settings(), "glossary_max_terms", 100)
-                entries = entries[:max_terms]
-                logger.debug(
-                    "Loaded %d merged glossary entries for series %d",
-                    len(entries),
-                    series_id,
-                )
-                return entries
+            entries = get_merged_glossary_for_series(series_id, target_lang)
         else:
             from db.translation import get_global_glossary
 
-            global_entries = get_global_glossary()
-            if global_entries:
-                max_terms = getattr(_get_settings(), "glossary_max_terms", 100)
-                global_entries = global_entries[:max_terms]
-                result = [
-                    {"source_term": e["source_term"], "target_term": e["target_term"]}
-                    for e in global_entries
-                ]
-                logger.debug("Loaded %d global glossary entries", len(result))
-                return result
+            entries = [
+                {
+                    "source_term": e["source_term"],
+                    "target_term": e["target_term"],
+                    "approved": e.get("approved", 1),
+                }
+                for e in get_global_glossary(target_lang)
+            ]
+        entries = [e for e in entries if e.get("approved", 1) != 0]
+        if entries:
+            max_terms = getattr(_get_settings(), "glossary_max_terms", 100)
+            entries = entries[:max_terms]
+            logger.debug("Loaded %d glossary entries (series %s)", len(entries), series_id)
+            return entries
     except Exception as e:
-        logger.debug("Failed to load glossary: %s", e)
+        # Not fatal, but a translation without its glossary drifts on terms.
+        logger.warning("Failed to load glossary: %s", e)
 
     return None
 

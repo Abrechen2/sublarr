@@ -4,7 +4,7 @@ import {
   translateFile, startBatch,
   getRetranslateStatus, retranslateSingle, retranslateBatch,
   getGlossaryEntries, createGlossaryEntry, updateGlossaryEntry, deleteGlossaryEntry,
-  suggestGlossaryTerms, exportGlossaryTsv,
+  suggestGlossaryTerms, exportGlossaryTsv, getGlossaryPresets, importGlossaryPreset,
   getPromptPresets, getDefaultPromptPreset, createPromptPreset, updatePromptPreset, deletePromptPreset,
   getBackends, testBackend, getBackendConfig, saveBackendConfig, getBackendStats,
   getWhisperBackends, testWhisperBackend, getWhisperBackendConfig, saveWhisperBackendConfig,
@@ -93,6 +93,24 @@ export function useGlobalGlossaryEntries() {
   return useQuery({
     queryKey: ['glossary', 'global'],
     queryFn: () => getGlossaryEntries(null),
+  })
+}
+
+export function useGlossaryPresets() {
+  return useQuery({
+    queryKey: ['glossary', 'presets'],
+    queryFn: getGlossaryPresets,
+    staleTime: Infinity,
+  })
+}
+
+export function useImportGlossaryPreset() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: importGlossaryPreset,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['glossary', 'global'] })
+    },
   })
 }
 

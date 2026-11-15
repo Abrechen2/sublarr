@@ -55,6 +55,8 @@ vi.mock('@/hooks/useApi', () => ({
   useUpdateGlossaryEntry: () => ({ mutate: vi.fn() }),
   useDeleteGlossaryEntry: () => ({ mutate: vi.fn() }),
   useExportGlossaryTsv: () => ({ mutate: vi.fn(), isPending: false }),
+  useGlossaryPresets: () => ({ data: { presets: [] } }),
+  useImportGlossaryPreset: () => ({ mutate: vi.fn(), isPending: false }),
   useContextWindowSize: () => ({ value: 3, save: vi.fn(), isPending: false }),
   useConfig: () => ({
     data: {

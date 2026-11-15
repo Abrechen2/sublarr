@@ -9,6 +9,7 @@ import {
   useGlobalGlossaryEntries, useCreateGlossaryEntry, useUpdateGlossaryEntry, useDeleteGlossaryEntry,
   useExportGlossaryTsv, useConfig, useUpdateConfig,
 } from '@/hooks/useApi'
+import { GlossaryPresetsCard } from './GlossaryPresetsCard'
 
 // ─── Global Glossary Panel ──────────────────────────────────────────────────
 
@@ -225,6 +226,8 @@ export function GlobalGlossaryPanel() {
           />
         </SettingRow>
       </div>
+
+      <GlossaryPresetsCard entries={entries} />
 
       {/* Search */}
       {entries.length > 0 && (

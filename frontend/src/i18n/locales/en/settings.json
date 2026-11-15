@@ -2333,6 +2333,21 @@
     "no_search_results": "No entries match your search.",
     "no_entries": "No global glossary entries. Add terms that should be consistently translated across all series."
   },
+  "glossary_presets": {
+    "title": "Suggestions",
+    "help": "Ready-made term lists for common anime terms. Imported terms go into the global glossary and apply only to their target language. Terms you already have stay unchanged.",
+    "import_one": "Import {{count}} term",
+    "import_other": "Import {{count}} terms",
+    "all_imported": "Imported",
+    "term_count_one": "{{count}} term",
+    "term_count_other": "{{count}} terms",
+    "toast_imported": "{{added}} imported, {{skipped}} already present",
+    "toast_import_failed": "Import failed",
+    "name": {
+      "anime-en-de": "Anime (English → German)",
+      "anime-de-en": "Anime (German → English)"
+    }
+  },
   "backend_card": {
     "field_desc_name": "Display name for this LLM backend",
     "field_desc_url": "LLM API endpoint, e.g. http://localhost:11434 for Ollama",

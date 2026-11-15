@@ -443,6 +443,7 @@ def create_glossary(data: dict) -> dict:
         term_type=data.get("term_type", "other"),
         confidence=data.get("confidence"),
         approved=data.get("approved", 1),
+        target_language=data.get("target_language") or None,
     )
     return get_glossary_entry(entry_id)
 

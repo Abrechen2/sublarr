@@ -1,0 +1,27 @@
+{
+  "id": "anime-en-de",
+  "name": "Anime (English → German)",
+  "description": "Recurring fantasy and school terms in anime, with the German renderings fansubs and simulcasts settle on most often.",
+  "source_language": "en",
+  "target_language": "de",
+  "entries": [
+    {"source_term": "Demon King", "target_term": "Dämonenkönig"},
+    {"source_term": "Demon Lord", "target_term": "Dämonenfürst"},
+    {"source_term": "Demon Lord's Army", "target_term": "Armee des Dämonenfürsten"},
+    {"source_term": "Adventurer's Guild", "target_term": "Abenteurergilde"},
+    {"source_term": "Adventurers' Guild", "target_term": "Abenteurergilde"},
+    {"source_term": "Adventurer Guild", "target_term": "Abenteurergilde"},
+    {"source_term": "Guild Master", "target_term": "Gildenmeister"},
+    {"source_term": "Saintess", "target_term": "Heilige"},
+    {"source_term": "magic stone", "target_term": "Magiestein"},
+    {"source_term": "Student Council President", "target_term": "Schülerratspräsident"},
+    {"source_term": "Student Council", "target_term": "Schülerrat"},
+    {"source_term": "Hero", "target_term": "Held"},
+    {"source_term": "dungeon", "target_term": "Dungeon"},
+    {"source_term": "Holy Knight", "target_term": "Heiliger Ritter"},
+    {"source_term": "Sword Saint", "target_term": "Schwertheiliger"},
+    {"source_term": "beastman", "target_term": "Tiermensch"},
+    {"source_term": "beastmen", "target_term": "Tiermenschen"},
+    {"source_term": "Youkai", "target_term": "Youkai"}
+  ]
+}

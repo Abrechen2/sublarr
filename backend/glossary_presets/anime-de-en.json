@@ -1,0 +1,20 @@
+{
+  "id": "anime-de-en",
+  "name": "Anime (German → English)",
+  "description": "The same recurring anime terms in the other direction, with the English renderings simulcasts use.",
+  "source_language": "de",
+  "target_language": "en",
+  "entries": [
+    {"source_term": "Dämonenkönig", "target_term": "Demon King"},
+    {"source_term": "Dämonenfürst", "target_term": "Demon Lord"},
+    {"source_term": "Abenteurergilde", "target_term": "Adventurers' Guild"},
+    {"source_term": "Gildenmeister", "target_term": "Guild Master"},
+    {"source_term": "Magiestein", "target_term": "magic stone"},
+    {"source_term": "Schülerratspräsident", "target_term": "Student Council President"},
+    {"source_term": "Schülerrat", "target_term": "Student Council"},
+    {"source_term": "Heiliger Ritter", "target_term": "Holy Knight"},
+    {"source_term": "Schwertheiliger", "target_term": "Sword Saint"},
+    {"source_term": "Tiermensch", "target_term": "beastman"},
+    {"source_term": "Tiermenschen", "target_term": "beastmen"}
+  ]
+}
