@@ -17,6 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   language it is written for, so a German term list no longer reaches
   translations into other languages. Existing entries keep applying to
   every language.
+- **Long lists scroll in their own box** — The trash, the sync run history,
+  hooks, standalone folders, the plugin marketplace, the release-group and
+  custom scoring lists and both glossaries no longer stretch the page with
+  every entry; each scrolls inside a box of capped height. The two trash
+  sections fold under their headers, and the glossary suggestion card folds
+  away once the glossary has terms.
 
 ### Fixed
 - **Untranslated batches were saved as translations** — Between two
@@ -35,6 +41,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   term.
 - **Grey-on-grey text** — Secondary and muted text (timestamps, help
   texts, metadata) now reach WCAG AA contrast (4.5:1) in both themes.
+- **Metadata API keys looked like a missing setting** — TMDB and TVDB keys
+  are only read in standalone mode, so the section is now shown only there.
+  The TMDB field asked for the v3 API key although Sublarr needs the API Read
+  Access Token; the copy now says so.
 
 ### Security
 - **certifi** pinned to 2026.10.18 or later, which removes the compromised
