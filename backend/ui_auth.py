@@ -389,7 +389,9 @@ def init_ui_auth(app):
         unconfigured = False
     if unconfigured:
         logger.warning(
+            # No "token:" right before the value: the log redaction layer masks
+            # that shape, and this line is the only place the token is shown.
             "UI auth is not set up yet. From outside the local network, the first "
-            "setup asks for this one-time token: %s",
+            "setup asks for a one-time setup token. Enter this code: %s",
             setup_token(),
         )
