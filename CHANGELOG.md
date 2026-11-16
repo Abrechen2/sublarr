@@ -50,6 +50,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **certifi** pinned to 2026.10.18 or later, which removes the compromised
   emSign root certificates. Dev dependencies with advisories were updated.
 
+## [1.20.3] - 2026-11-16
+
+### Fixed
+- **Setup token hidden in the container log** — The log redaction that keeps
+  API keys out of the log also masked the one-time setup token, so a new
+  install opened from outside the local network showed `***REDACTED***` and
+  could not finish the first setup (#252). The token is now printed in full to
+  the container console (`docker logs`) only — not to the log file or the
+  in-app log viewer, which are readable before the first setup.
+
 ## [1.20.2] - 2026-11-08
 
 ### Fixed
