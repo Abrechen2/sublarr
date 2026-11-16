@@ -261,3 +261,17 @@ def test_is_ui_auth_enabled_survives_concurrent_cache_invalidation(monkeypatch):
     """
     ui_auth._auth_enabled_cache = _RaceTuple((float("inf"), True))
     assert ui_auth.is_ui_auth_enabled() is True
+
+
+def test_setup_token_survives_log_redaction(monkeypatch, caplog):
+    """The startup line is the only place the setup token is shown (#252).
+
+    The log redaction layer masks ``token: <value>``, which left new installs
+    stuck at the setup screen with ``***REDACTED***`` instead of the token.
+    """
+    from secret_redaction import redact
+
+    with caplog.at_level("WARNING", logger=ui_auth.logger.name):
+        _make_app_with_auth(monkeypatch, configured=False, enabled=False)
+    line = next(r.getMessage() for r in caplog.records if "setup" in r.getMessage())
+    assert ui_auth.setup_token() in redact(line)
