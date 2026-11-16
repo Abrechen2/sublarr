@@ -11,6 +11,7 @@ import json
 import logging
 import os
 import secrets
+import sys
 import time
 
 import bcrypt
@@ -389,9 +390,11 @@ def init_ui_auth(app):
         unconfigured = False
     if unconfigured:
         logger.warning(
-            # No "token:" right before the value: the log redaction layer masks
-            # that shape, and this line is the only place the token is shown.
             "UI auth is not set up yet. From outside the local network, the first "
-            "setup asks for a one-time setup token. Enter this code: %s",
-            setup_token(),
+            "setup asks for a one-time setup token; it is printed to the container "
+            "console (docker logs), not to this log."
         )
+        # Console only: the log file and the Socket.IO stream are readable through
+        # /api/v1/logs, which is open until UI auth is set up, and the redaction
+        # layer would mask the value there anyway.
+        print(f"Sublarr one-time setup code: {setup_token()}", file=sys.stderr, flush=True)
