@@ -76,6 +76,17 @@ class TestComputeKeepLangs:
         )
         assert keep == {"de", "en"}
 
+    def test_profile_source_language_is_kept(self):
+        """#254 class: a ja→ru profile lost its Japanese source tracks and
+        sidecars because only the global source ('en') was kept."""
+        from services.embedded_extractor import compute_keep_langs
+
+        keep = compute_keep_langs(
+            {"target_languages": ["ru"], "source_language": "ja"},
+            self._settings(auto_translate=True, source_language="en"),
+        )
+        assert keep == {"ru", "ja", "en"}
+
 
 class TestPickPrimary:
     def test_three_letter_track_matches_two_letter_target(self):

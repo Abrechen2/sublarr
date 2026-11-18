@@ -71,10 +71,14 @@ def retranslate_item(item_id: int) -> str | None:
 
     target_lang = item.get("target_language") or settings.target_language
 
-    # Remove existing translated sidecar files so re-translation starts clean
+    from translator.target_resolution import TRANSLATE_TO_KEY, target_sidecar_patterns
+    from wanted_search.process import _build_arr_context
+
+    # Remove this item's translated sidecars (its language, not the global
+    # default — #254) so re-translation starts clean
     base = os.path.splitext(file_path)[0]
     for fmt in ("ass", "srt"):
-        for pattern in settings.get_target_patterns(fmt):
+        for pattern in target_sidecar_patterns(target_lang, fmt):
             target = base + pattern
             if os.path.exists(target):
                 try:
@@ -83,7 +87,11 @@ def retranslate_item(item_id: int) -> str | None:
                 except OSError as exc:
                     logger.warning("retranslate_item: could not remove %s: %s", target, exc)
 
-    new_job = create_job(file_path, force=True)
+    new_job = create_job(
+        file_path,
+        force=True,
+        arr_context={**_build_arr_context(item), TRANSLATE_TO_KEY: target_lang},
+    )
 
     from flask import current_app as _current_app
 

@@ -47,6 +47,7 @@ from translator.srt_flow import (  # noqa: F401 — re-exported for patches
     translate_srt_from_file,
     translate_srt_from_stream,
 )
+from translator.target_resolution import resolve_translation_target
 
 logger = logging.getLogger(__name__)
 
@@ -135,11 +136,18 @@ def translate_file(
     _get_media_streams = _pkg().get_media_streams
     _select_best_subtitle_stream = _pkg().select_best_subtitle_stream
 
-    from config_language_data import normalize_language_code
+    from config_language_data import language_name, normalize_language_code
 
     settings = _get_settings()
-    tgt_lang = target_language or settings.target_language
-    tgt_name = target_language_name or settings.target_language_name
+    if target_language:
+        tgt_lang = target_language
+        tgt_name = target_language_name or language_name(target_language)
+    else:
+        # UI-started translations pass no language: the item's profile decides,
+        # not the hidden global default (#254).
+        resolved = resolve_translation_target(mkv_path, arr_context)
+        tgt_lang, tgt_name = resolved.code, resolved.name
+        source_language = source_language or resolved.source
     # Preferred source language (translation direction). Falls back to the
     # configured global source; callers (e.g. wanted_search) may pass the
     # profile's source_language. When the actual available source is in a

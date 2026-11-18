@@ -285,3 +285,81 @@ class TestRetranslateBatch:
 
             # Job now carries the current hash -> no longer outdated.
             assert get_outdated_jobs_count(current_hash) == 0
+
+
+class TestRetranslateUsesItemLanguage:
+    """#254: re-translation removed the sidecar of the hidden global target
+    ('de') and kept the real one, then translated toward 'de' as well."""
+
+    _RU = {"target_languages": ["ru"], "target_language_names": ["Russian"]}
+
+    def _media(self, tmp_path):
+        media = tmp_path / "ep.mkv"
+        media.write_text("x")
+        for name in ("ep.ru.srt", "ep.de.srt"):
+            (tmp_path / name).write_text("1")
+        return media
+
+    def test_single_wanted_item_replaces_its_own_language(self, client, tmp_path, monkeypatch):
+        _run_sync(monkeypatch)
+        media = self._media(tmp_path)
+        with client.application.app_context():
+            save_config_entry("translation_enabled", "true")
+            item_id, _ = upsert_wanted_item(
+                item_type="episode", file_path=str(media), target_language="ru"
+            )
+        with (
+            patch("db.jobs.get_job", return_value=None),
+            patch("db.jobs.create_job", wraps=__import__("db.jobs").jobs.create_job) as cj,
+            patch(
+                "routes.translate.retranslate._run_job",
+                return_value={"success": False, "error": "x", "stats": {}},
+            ),
+        ):
+            resp = client.post(f"/api/v1/retranslate/{item_id}")
+        assert resp.status_code == 202
+        assert not (tmp_path / "ep.ru.srt").exists()
+        assert (tmp_path / "ep.de.srt").exists()
+        assert cj.call_args.kwargs["arr_context"]["translate_to"] == "ru"
+
+    def test_service_retranslate_item_replaces_its_own_language(self, client, tmp_path):
+        media = self._media(tmp_path)
+        with client.application.app_context():
+            item_id, _ = upsert_wanted_item(
+                item_type="episode", file_path=str(media), target_language="ru"
+            )
+            from services import retranslation
+
+            with (
+                patch("db.jobs.create_job", wraps=__import__("db.jobs").jobs.create_job) as cj,
+                patch("threading.Thread"),
+            ):
+                assert retranslation.retranslate_item(item_id)
+        assert not (tmp_path / "ep.ru.srt").exists()
+        assert (tmp_path / "ep.de.srt").exists()
+        assert cj.call_args.kwargs["arr_context"]["translate_to"] == "ru"
+
+    def test_batch_uses_the_profile_language(self, client, tmp_path, monkeypatch):
+        _run_sync(monkeypatch)
+        media = self._media(tmp_path)
+        with client.application.app_context():
+            save_config_entry("translation_enabled", "true")
+        with (
+            patch("db.jobs.get_outdated_jobs", return_value=[{"file_path": str(media)}]),
+            patch("translator.target_resolution.get_profile_for_item", return_value=self._RU),
+            patch(
+                "translator.translate_file",
+                return_value={
+                    "success": True,
+                    "output_path": str(tmp_path / "ep.ru.srt"),
+                    "stats": {"format": "srt"},
+                },
+            ) as tf,
+            patch("services.mt_provisional.record_mt_output") as rec,
+        ):
+            resp = client.post("/api/v1/retranslate/batch")
+        assert resp.status_code == 202
+        assert not (tmp_path / "ep.ru.srt").exists()
+        assert (tmp_path / "ep.de.srt").exists()
+        assert tf.call_args.kwargs["target_language"] == "ru"
+        assert rec.call_args.args[2] == "ru"

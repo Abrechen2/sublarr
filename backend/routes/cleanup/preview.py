@@ -147,10 +147,13 @@ def cleanup_non_target_subs():
                     keep_langs.add(nc)
             # Source language is needed when any profile has translation on —
             # conservatively include it so translation inputs aren't deleted.
+            # Each profile's own source counts (#254 class): keeping only the
+            # global one trashed the .ja sidecars of a ja→ru profile.
             if getattr(settings, "wanted_auto_translate", False):
-                src = normalize_language_code(settings.source_language)
-                if src:
-                    keep_langs.add(src)
+                for raw in (p.get("source_language"), settings.source_language):
+                    src = normalize_language_code(raw or "")
+                    if src:
+                        keep_langs.add(src)
     except Exception as exc:
         logger.error("Profile aggregation failed: %s", exc)
         return internal_error_response("could not aggregate profiles")

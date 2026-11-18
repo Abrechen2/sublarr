@@ -186,7 +186,7 @@ class TestRecordConfigHash:
 class TestScanDirectory:
     """Tests for scan_directory."""
 
-    @patch("translator.jobs.detect_existing_target")
+    @patch("translator.jobs.detect_existing_target_for_lang")
     def test_finds_mkv_files(self, mock_detect, tmp_path):
         from translator.jobs import scan_directory
 
@@ -206,7 +206,7 @@ class TestScanDirectory:
         assert str(mkv1) in paths
         assert str(mkv2) in paths
 
-    @patch("translator.jobs.detect_existing_target")
+    @patch("translator.jobs.detect_existing_target_for_lang")
     def test_skips_existing_ass_unless_force(self, mock_detect, tmp_path):
         from translator.jobs import scan_directory
 
@@ -223,7 +223,7 @@ class TestScanDirectory:
         files = scan_directory(str(tmp_path), force=True)
         assert len(files) == 1
 
-    @patch("translator.jobs.detect_existing_target")
+    @patch("translator.jobs.detect_existing_target_for_lang")
     def test_includes_srt_only(self, mock_detect, tmp_path):
         from translator.jobs import scan_directory
 
@@ -237,7 +237,7 @@ class TestScanDirectory:
         assert files[0]["target_status"] == "srt"
         assert files[0]["size_mb"] == pytest.approx(1024 / (1024 * 1024), abs=0.001)
 
-    @patch("translator.jobs.detect_existing_target")
+    @patch("translator.jobs.detect_existing_target_for_lang")
     def test_empty_directory(self, mock_detect, tmp_path):
         from translator.jobs import scan_directory
 

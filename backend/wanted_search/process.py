@@ -8,6 +8,7 @@ import os
 import decision_log
 import provider_reach
 from config import get_settings
+from config_language_data import language_name
 from db.jobs import create_job, record_stat, update_job
 from db.library import record_upgrade
 from db.providers import record_subtitle_download
@@ -737,7 +738,7 @@ def _try_source_ass_translation(ctx: dict) -> dict | None:
                 file_path,
                 actual_source_path,
                 target_language=item_lang,
-                target_language_name=settings.target_language_name,
+                target_language_name=language_name(item_lang),
                 arr_context=arr_context if arr_context else None,
                 source_language=settings.source_language,
             )

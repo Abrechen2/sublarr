@@ -1242,9 +1242,10 @@ def resolve_profile_for_item(item: dict, settings, *, strict: bool = False) -> d
 def compute_keep_langs(profile: dict, settings) -> set[str]:
     """Return the normalised set of languages the cleanup pass must retain.
 
-    Always includes the profile's ``target_languages``. Adds
-    ``settings.source_language`` when ``wanted_auto_translate`` is enabled
-    so the source-lang sidecar survives long enough to be translated.
+    Always includes the profile's ``target_languages``. Adds the profile's
+    ``source_language`` and ``settings.source_language`` when
+    ``wanted_auto_translate`` is enabled so the source-lang sidecar survives
+    long enough to be translated.
 
     Script-variant targets (zh-hans, zh-hant) also keep their base code —
     containers/sidecars are usually tagged with the generic language
@@ -1261,9 +1262,11 @@ def compute_keep_langs(profile: dict, settings) -> set[str]:
     keep: set[str] = set()
     codes = list(profile.get("target_languages", []))
     if getattr(settings, "wanted_auto_translate", False):
-        src = getattr(settings, "source_language", "") or ""
-        if src:
-            codes.append(src)
+        # The profile's own source first (#254 class: keeping only the global
+        # one stripped the Japanese source of a ja→ru profile).
+        for src in (profile.get("source_language"), getattr(settings, "source_language", "")):
+            if src:
+                codes.append(src)
     for code in codes:
         if not code:
             continue

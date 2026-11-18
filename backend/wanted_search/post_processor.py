@@ -12,6 +12,7 @@ from types import SimpleNamespace
 
 import decision_log
 from config import get_settings
+from config_language_data import language_name
 from db.jobs import create_job, record_stat, update_job
 from db.providers import record_subtitle_download
 from db.wanted import delete_wanted_item, get_wanted_item, update_wanted_status
@@ -495,7 +496,7 @@ def _download_specific_for_item(
                     file_path,
                     actual_source_path,
                     target_language=item_lang,
-                    target_language_name=settings.target_language_name,
+                    target_language_name=language_name(item_lang),
                     arr_context=arr_context or None,
                 )
             else:

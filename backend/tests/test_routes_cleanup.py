@@ -880,6 +880,37 @@ class TestNonTargetSubs:
             os.environ.pop("SUBLARR_MEDIA_PATH", None)
             reload_settings()
 
+    def test_profile_source_language_is_kept(self, client, tmp_path, monkeypatch):
+        """#254 class: only the hidden global source ('en') was kept, so the
+        Japanese source sidecar of a ja→ru profile went to the trash."""
+        import os
+
+        media = tmp_path / "media"
+        media.mkdir()
+        (media / "ep.mkv").write_bytes(b"\x00")
+        (media / "ep.ja.ass").write_text("x")
+        monkeypatch.setenv("SUBLARR_MEDIA_PATH", str(media))
+        from config import reload_settings
+
+        reload_settings()
+        profile = {"source_language": "ja", "target_languages": ["ru"]}
+        try:
+            with (
+                patch(
+                    "db.repositories.profiles.ProfileRepository.get_profiles",
+                    return_value=[profile],
+                ),
+                patch("config.Settings.wanted_auto_translate", True, create=True),
+            ):
+                rv = client.post("/api/v1/cleanup/non-target-subs", json={"dry_run": True})
+            assert rv.status_code == 200, rv.get_json()
+            body = rv.get_json()
+            assert "ja" in body["keep_langs"]
+            assert body["would_trash"] == 0
+        finally:
+            os.environ.pop("SUBLARR_MEDIA_PATH", None)
+            reload_settings()
+
 
 # ---- TestScanWorkerContext -----------------------------------------------------
 

@@ -3,7 +3,7 @@
 import logging
 
 from config import get_settings
-from translator.output_paths import detect_existing_target
+from translator.output_paths import detect_existing_target_for_lang
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +63,8 @@ def _record_config_hash_for_result(result, file_path):
             config_hash=config_hash,
             ollama_model=model_info,
             prompt_template=settings.get_prompt_template()[:200],
-            target_language=settings.target_language,
+            target_language=result.get("stats", {}).get("target_language")
+            or settings.target_language,
         )
         # Store hash in result stats for job record
         result.setdefault("stats", {})["config_hash"] = config_hash
@@ -79,6 +80,8 @@ def scan_directory(directory, force=False):
     """
     import os
 
+    from translator.target_resolution import resolve_translation_target
+
     files = []
     for root, _dirs, filenames in os.walk(directory):
         for filename in sorted(filenames):
@@ -87,7 +90,10 @@ def scan_directory(directory, force=False):
             mkv_path = os.path.join(root, filename)
 
             # Check external target subs only (no ffprobe — too slow for scan)
-            target_status = detect_existing_target(mkv_path)
+            # The file's own profile language, not the global default (#254).
+            target_status = detect_existing_target_for_lang(
+                mkv_path, resolve_translation_target(mkv_path).code
+            )
 
             if target_status == "ass" and not force:
                 continue  # Goal achieved, skip

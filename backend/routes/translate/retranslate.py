@@ -125,18 +125,36 @@ def retranslate_single(job_id):
     if not _is_translation_enabled():
         return jsonify({"error": "Translation is disabled in configuration"}), 503
 
+    # The language to replace: the wanted row's own, else the one the profile
+    # governing the file resolves to — never the hidden global default (#254).
+    from translator.target_resolution import (
+        TRANSLATE_TO_KEY,
+        resolve_translation_target,
+        target_sidecar_patterns,
+    )
+
+    if wanted_item and wanted_item.get("target_language"):
+        target_code = wanted_item["target_language"]
+    else:
+        target_code = resolve_translation_target(file_path, (job or {}).get("arr_context")).code
+
     # Delete existing translated subtitle
-    s = get_settings()
     base = os.path.splitext(file_path)[0]
     for fmt in ["ass", "srt"]:
-        for pattern in s.get_target_patterns(fmt):
+        for pattern in target_sidecar_patterns(target_code, fmt):
             target = base + pattern
             if os.path.exists(target):
                 os.remove(target)
                 logger.info("Re-translate: removed %s", target)
 
     # Re-translate with force
-    new_job = create_job(file_path, force=True)
+    context = dict((job or {}).get("arr_context") or {})
+    if wanted_item:
+        from wanted_search.process import _build_arr_context
+
+        context.update(_build_arr_context(wanted_item))
+    context[TRANSLATE_TO_KEY] = target_code
+    new_job = create_job(file_path, force=True, arr_context=context)
     _app = current_app._get_current_object()
 
     def _run():
@@ -152,8 +170,7 @@ def retranslate_single(job_id):
             if wanted_item:
                 from services.retranslation import _finalize_retranslation
 
-                item_lang = wanted_item.get("target_language") or get_settings().target_language
-                _finalize_retranslation(wanted_item["id"], wanted_item, item_lang, result)
+                _finalize_retranslation(wanted_item["id"], wanted_item, target_code, result)
             emit_event(
                 "translation_complete",
                 {
@@ -213,6 +230,7 @@ def retranslate_batch():
     from config import get_settings
     from db.jobs import get_outdated_jobs, update_job
     from translator import translate_file
+    from translator.target_resolution import resolve_translation_target, target_sidecar_patterns
 
     if not _is_translation_enabled():
         return jsonify({"error": "Translation is disabled in configuration"}), 503
@@ -247,16 +265,24 @@ def retranslate_batch():
                     failed += 1
                     continue
 
-                # Remove existing target subs
+                # Remove existing target subs of the language this file's
+                # profile translates into (#254), then translate into it.
+                target = resolve_translation_target(file_path, context)
                 base = os.path.splitext(file_path)[0]
                 for fmt in ["ass", "srt"]:
-                    for pattern in s.get_target_patterns(fmt):
-                        target = base + pattern
-                        if os.path.exists(target):
-                            os.remove(target)
+                    for pattern in target_sidecar_patterns(target.code, fmt):
+                        sidecar = base + pattern
+                        if os.path.exists(sidecar):
+                            os.remove(sidecar)
 
                 try:
-                    result = translate_file(file_path, force=True)
+                    result = translate_file(
+                        file_path,
+                        force=True,
+                        arr_context=context or None,
+                        target_language=target.code,
+                        target_language_name=target.name,
+                    )
                     processed += 1
                     if result["success"]:
                         succeeded += 1
@@ -286,7 +312,7 @@ def retranslate_batch():
                             out_fmt = stats.get("format") or (
                                 "ass" if output_path.endswith(".ass") else "srt"
                             )
-                            record_mt_output(file_path, output_path, s.target_language, out_fmt)
+                            record_mt_output(file_path, output_path, target.code, out_fmt)
                     else:
                         failed += 1
                 except Exception as e:
