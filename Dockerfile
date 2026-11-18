@@ -6,7 +6,7 @@
 
 # Validate backend sources before they can enter any runtime image layer.
 # This runs on the build host's architecture, including multi-arch builds.
-FROM --platform=$BUILDPLATFORM python:3.12-slim AS backend-source
+FROM --platform=$BUILDPLATFORM python:3.15-slim AS backend-source
 WORKDIR /source
 COPY backend/ .
 COPY docker/verify-source.py /verify-source.py
@@ -25,7 +25,7 @@ COPY frontend/ .
 RUN npx vite build && node scripts/compress-dist.mjs
 
 # Stage 2: Python Backend + Frontend Bundle
-FROM python:3.12-slim
+FROM python:3.15-slim
 
 # Pass from build: docker build --build-arg VERSION=$(cat backend/VERSION) ...
 # Or use scripts/docker-build.sh to get version suggestions and build.
