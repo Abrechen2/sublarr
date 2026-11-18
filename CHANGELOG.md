@@ -5,6 +5,23 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.21.1] - 2026-11-18
+
+### Fixed
+- **Translations went into German regardless of the language profile** —
+  Translate, Re-translate, batch translation and job retry ignored the
+  language profile of the series or movie and used the hidden global target
+  language, which defaults to German. With a profile targeting another
+  language every batch was rejected as "wrong script" (#254). The profile
+  governing the file now decides the direction; re-translation replaces the
+  subtitle of the item's own language instead of a German one, and the batch
+  scan checks each file's own language.
+- **Cleanup could trash a profile's source subtitles** — The non-target
+  sidecar cleanup and the post-extraction cleanup kept only the global source
+  language, so a profile translating from another language (for example
+  Japanese) could lose its source tracks and sidecars. Each profile's own
+  source language is kept now.
+
 ## [1.21.0] - 2026-11-17
 
 ### Added
