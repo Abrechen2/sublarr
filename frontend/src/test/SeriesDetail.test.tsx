@@ -96,6 +96,7 @@ vi.mock('@/hooks/useApi', () => ({
     return { data: { preferred_groups: [], excluded_groups: [] } }
   },
   useRescanSeries: () => ({ mutate: vi.fn(), isPending: false }),
+  useAcceptSubtitleQuality: () => ({ mutate: vi.fn() }),
 }))
 
 vi.mock('@/hooks/useWantedApi', () => ({
