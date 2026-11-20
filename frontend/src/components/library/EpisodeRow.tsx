@@ -16,8 +16,9 @@ export function getRowStatus(
     return fmt == null || fmt === ''
   })
   if (hasMissing) return 'missing'
-  // Check lowest score among target languages
+  // Check lowest score among target languages the user has not accepted
   const scores = targetLanguages
+    .filter((lang) => !ep.subtitle_quality_accepted?.[lang])
     .map((lang) => ep.subtitle_scores?.[lang] ?? null)
     .filter((s): s is number => s !== null)
   // If all scores are null (not yet recorded), treat as ok

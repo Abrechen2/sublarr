@@ -55,6 +55,9 @@ class SubtitleDownload(db.Model):
     # decision_log_enabled setting off. Stripped from list responses —
     # served via GET /history/<id>/decision only.
     decision_log_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # 1 once the user accepted this subtitle's quality (#255): no low-score
+    # warning, no upgrade search. NULL/0 for everything else.
+    quality_accepted: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     __table_args__ = (
         # Re-added in sdp1_subtitle_downloads_path_idx: scans and the wanted

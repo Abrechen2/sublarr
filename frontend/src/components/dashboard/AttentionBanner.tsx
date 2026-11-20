@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ChevronRight, Search, SkipForward, Check } from 'lucide-react'
 import { useWantedItems, useSearchWantedItem, useUpdateWantedStatus } from '@/hooks/useWantedApi'
+import { useAcceptSubtitleQuality } from '@/hooks/useLibraryApi'
 import type { WantedItem } from '@/types/wanted'
 
 const MAX_ITEMS = 5
@@ -46,13 +47,17 @@ export function AttentionBanner() {
   const { data, isLoading } = useWantedItems(1, MAX_ITEMS * 2)
   const searchMutation = useSearchWantedItem()
   const statusMutation = useUpdateWantedStatus()
+  const acceptMutation = useAcceptSubtitleQuality()
 
   const allFetched: WantedItem[] = data?.data ?? []
   const failedItems = allFetched.filter((item) => item.status === 'failed')
   // current_score > 0 means a subtitle exists but scored poorly (upgrade candidate)
   const lowScoreItems = allFetched.filter(
     (item) =>
-      item.current_score > 0 && item.current_score < LOW_SCORE_THRESHOLD && item.status !== 'failed',
+      item.current_score > 0 &&
+      item.current_score < LOW_SCORE_THRESHOLD &&
+      item.status !== 'failed' &&
+      item.status !== 'ignored',
   )
 
   const allItems = [...failedItems, ...lowScoreItems].slice(0, MAX_ITEMS)
@@ -172,7 +177,7 @@ export function AttentionBanner() {
                   />
                   <ActionBtn
                     testId={`attention-skip-${item.id}`}
-                    onClick={() => statusMutation.mutate({ itemId: item.id, status: 'skipped' })}
+                    onClick={() => statusMutation.mutate({ itemId: item.id, status: 'ignored' })}
                     label={t('attention.skip')}
                     icon={<SkipForward size={10} />}
                   />
@@ -188,7 +193,9 @@ export function AttentionBanner() {
                   />
                   <ActionBtn
                     testId={`attention-accept-${item.id}`}
-                    onClick={() => statusMutation.mutate({ itemId: item.id, status: 'accepted' })}
+                    onClick={() =>
+                      acceptMutation.mutate({ filePath: item.file_path, language: item.target_language })
+                    }
                     label={t('attention.accept')}
                     icon={<Check size={10} />}
                   />

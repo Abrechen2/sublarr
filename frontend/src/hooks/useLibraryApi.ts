@@ -18,7 +18,7 @@ import {
   removeTrackFromContainer,
 } from '@/api/client'
 import {
-  listMovieSubtitles, listSubtitleBackups, cleanupSubtitleBackups,
+  listMovieSubtitles, listSubtitleBackups, cleanupSubtitleBackups, acceptSubtitleQuality,
 } from '@/api/library'
 import { toast } from '@/components/shared/Toast'
 import i18n from '@/i18n'
@@ -368,6 +368,19 @@ export function useUpdateSeriesSettings() {
       updateSeriesSettings(seriesId, settings),
     onSuccess: (_, { seriesId }) => {
       queryClient.invalidateQueries({ queryKey: ['series', seriesId] })
+    },
+  })
+}
+
+export function useAcceptSubtitleQuality() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ filePath, language }: { filePath: string; language?: string }) =>
+      acceptSubtitleQuality(filePath, language),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['series'] })
+      void queryClient.invalidateQueries({ queryKey: ['wanted'] })
+      void queryClient.invalidateQueries({ queryKey: ['wanted-summary'] })
     },
   })
 }

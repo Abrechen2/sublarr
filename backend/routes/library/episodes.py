@@ -330,3 +330,46 @@ def episode_history(episode_id):
     mapped = map_path(file_path)
     entries = get_episode_history(mapped)
     return jsonify({"entries": entries})
+
+
+@bp.route("/library/subtitle-quality/accept", methods=["POST"])
+def accept_subtitle_quality_route():
+    """Accept the quality of a file's low-score subtitles.
+    ---
+    post:
+      tags:
+        - Library
+      summary: Accept subtitle quality
+      description: Stores that the user accepts the current subtitles of a video file, so the low-score warning and the upgrade search stop for them. The score is kept. A later download starts unaccepted.
+      security:
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [file_path]
+              properties:
+                file_path:
+                  type: string
+                  description: The video path as the series detail reports it
+                language:
+                  type: string
+                  description: Only this language; all languages when omitted
+      responses:
+        200:
+          description: Number of accepted languages and ignored wanted rows
+        400:
+          description: Missing or invalid file_path or language
+    """
+    from services.subtitle_quality import accept_subtitle_quality
+
+    data = request.get_json(silent=True) or {}
+    file_path = data.get("file_path")
+    language = data.get("language")
+    if not isinstance(file_path, str) or not file_path.strip():
+        return jsonify({"error": "file_path is required"}), 400
+    if language is not None and not isinstance(language, str):
+        return jsonify({"error": "language must be a string"}), 400
+    return jsonify(accept_subtitle_quality(file_path, language or None))

@@ -89,11 +89,11 @@ def _get_standalone_series_detail(series_id: int, settings) -> dict | None:
     # Load subtitle_downloads score/provider for all file paths in this series.
     # Named binds via expanding-IN keep this cross-DB (the old `?` + positional
     # list was SQLite-only and silently 500'd on PostgreSQL).
-    standalone_scores: dict = {}  # fp -> {lang: (score, provider_name)}
+    standalone_scores: dict = {}  # fp -> {lang: (score, provider_name, accepted)}
     if unique_fps:
         try:
             stmt = text(
-                "SELECT file_path, language, format, score, provider_name "
+                "SELECT file_path, language, format, score, provider_name, quality_accepted "
                 "FROM subtitle_downloads "
                 "WHERE file_path IN :fps AND format != '' "
                 "ORDER BY downloaded_at DESC"
@@ -106,7 +106,7 @@ def _get_standalone_series_detail(series_id: int, settings) -> dict | None:
                     if sa_path not in standalone_scores:
                         standalone_scores[sa_path] = {}
                     if sa_lang not in standalone_scores[sa_path]:
-                        standalone_scores[sa_path][sa_lang] = (sa_score, sa_provider)
+                        standalone_scores[sa_path][sa_lang] = (sa_score, sa_provider, bool(row[5]))
         except Exception as exc:
             logger.warning("subtitle_downloads score query failed: %s", exc, exc_info=True)
 
@@ -201,6 +201,9 @@ def _get_standalone_series_detail(series_id: int, settings) -> dict | None:
                 },
                 "subtitle_providers": {
                     lang: ep_scores_sa.get(lang, (None, None))[1] for lang in subtitles
+                },
+                "subtitle_quality_accepted": {
+                    lang: ep_scores_sa.get(lang, (None, None, False))[2] for lang in subtitles
                 },
                 "audio_languages": [],
                 "monitored": True,
@@ -413,7 +416,7 @@ def get_series_detail(series_id):
     # Most recent download per (file_path, language) wins.
     ep_id_to_mapped: dict = {}  # ep_id -> local mapped path (used in response + DB lookup)
     history_fallback: dict = {}  # ep_id -> {lang: format}
-    history_scores: dict = {}  # ep_id -> {lang: (score, provider_name)}
+    history_scores: dict = {}  # ep_id -> {lang: (score, provider_name, accepted)}
     if ep_id_to_file:
         try:
             ep_id_to_mapped = {
@@ -423,7 +426,7 @@ def get_series_detail(series_id):
             paths = list(mapped_to_ep_id.keys())
             conn = get_db()
             stmt = text(
-                "SELECT file_path, language, format, score, provider_name "
+                "SELECT file_path, language, format, score, provider_name, quality_accepted "
                 "FROM subtitle_downloads "
                 "WHERE file_path IN :paths AND format != '' "
                 "ORDER BY downloaded_at DESC"
@@ -442,7 +445,7 @@ def get_series_detail(series_id):
                     if lang not in history_fallback[ep_id]:
                         history_fallback[ep_id][lang] = fmt
                     if lang not in history_scores[ep_id]:
-                        history_scores[ep_id][lang] = (score, provider_name)
+                        history_scores[ep_id][lang] = (score, provider_name, bool(row[5]))
         except Exception as exc:
             logger.warning("subtitle_downloads score query failed: %s", exc, exc_info=True)
 
@@ -513,6 +516,9 @@ def get_series_detail(series_id):
                 },
                 "subtitle_providers": {
                     lang: ep_scores.get(lang, (None, None))[1] for lang in subtitles
+                },
+                "subtitle_quality_accepted": {
+                    lang: ep_scores.get(lang, (None, None, False))[2] for lang in subtitles
                 },
                 "audio_languages": audio_languages,
                 "monitored": ep.get("monitored", False),

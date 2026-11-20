@@ -38,6 +38,20 @@ describe('getRowStatus', () => {
     expect(getRowStatus(ep, ['de'])).toBe('missing')
   })
 
+  it('returns low-score when a target subtitle scored below the threshold', () => {
+    const ep = makeEp({ subtitles: { de: 'srt' }, subtitle_scores: { de: 40 } })
+    expect(getRowStatus(ep, ['de'])).toBe('low-score')
+  })
+
+  it('returns ok when the user accepted the low score (#255)', () => {
+    const ep = makeEp({
+      subtitles: { de: 'srt', en: 'srt' },
+      subtitle_scores: { de: 40, en: 90 },
+      subtitle_quality_accepted: { de: true, en: false },
+    })
+    expect(getRowStatus(ep, ['de', 'en'])).toBe('ok')
+  })
+
   it('returns ok when no target languages configured', () => {
     expect(getRowStatus(makeEp({ subtitles: {} }), [])).toBe('ok')
   })

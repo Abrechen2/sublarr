@@ -299,7 +299,7 @@ class JobRepository(BaseRepository):
             self.session.execute(
                 select(func.count())
                 .select_from(WantedItem)
-                .where(WantedItem.upgrade_candidate == 1)
+                .where(WantedItem.upgrade_candidate == 1, WantedItem.status != "ignored")
             ).scalar()
             or 0
         )

@@ -142,7 +142,7 @@ def _get_interval_hours() -> int:
 
 def _execute_scan() -> dict:
     """Core scan logic: find eligible downloads and re-queue wanted items."""
-    from sqlalchemy import select
+    from sqlalchemy import or_, select
     from sqlalchemy import update as sa_update
 
     from config import get_settings
@@ -183,7 +183,14 @@ def _execute_scan() -> dict:
             SubtitleDownload.score,
             SubtitleDownload.format,
             SubtitleDownload.file_path,
-        ).where(SubtitleDownload.downloaded_at < cutoff_download)
+        ).where(
+            SubtitleDownload.downloaded_at < cutoff_download,
+            # The user accepted this subtitle's quality (#255).
+            or_(
+                SubtitleDownload.quality_accepted.is_(None),
+                SubtitleDownload.quality_accepted == 0,
+            ),
+        )
         downloads = db.execute(stmt).all()
 
         for dl in downloads:

@@ -60,6 +60,7 @@ export interface EpisodeInfo {
   subtitles: Record<string, string>  // lang -> "ass"|"srt"|""
   subtitle_scores?: Record<string, number | null>    // lang -> download score (0-100) or null
   subtitle_providers?: Record<string, string | null> // lang -> provider name or null
+  subtitle_quality_accepted?: Record<string, boolean> // lang -> user accepted the low score
   audio_languages: string[]
   monitored: boolean
   // Standalone episodes: `id` is the stable negative episode id, `wanted_id`

@@ -357,6 +357,15 @@ export async function exportSeriesSubtitles(seriesId: number, lang?: string): Pr
   URL.revokeObjectURL(url);
 }
 
+/** Accept a file's low-score subtitles (one language or all) so they stop being flagged. */
+export async function acceptSubtitleQuality(
+  filePath: string,
+  language?: string
+): Promise<{ accepted: number; ignored: number }> {
+  const response = await api.post('/library/subtitle-quality/accept', { file_path: filePath, language });
+  return response.data;
+}
+
 export async function updateSeriesSettings(
   seriesId: number,
   settings: { absolute_order: boolean }

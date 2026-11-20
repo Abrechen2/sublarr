@@ -404,7 +404,9 @@ class WantedRepository(BaseRepository, _WantedUpsertMixin, _WantedUpdatesMixin):
 
         # Upgradeable
         upgradeable_stmt = (
-            select(func.count()).select_from(WantedItem).where(WantedItem.upgrade_candidate == 1)
+            select(func.count())
+            .select_from(WantedItem)
+            .where(WantedItem.upgrade_candidate == 1, WantedItem.status != "ignored")
         )
         upgradeable = self.session.execute(upgradeable_stmt).scalar()
 
@@ -740,8 +742,12 @@ class WantedRepository(BaseRepository, _WantedUpsertMixin, _WantedUpdatesMixin):
         return self.session.execute(stmt).scalar() or 0
 
     def get_upgradeable_count(self) -> int:
-        """Get count of items marked as upgrade candidates."""
-        stmt = select(func.count()).select_from(WantedItem).where(WantedItem.upgrade_candidate == 1)
+        """Get count of upgrade candidates the user has not ignored or accepted."""
+        stmt = (
+            select(func.count())
+            .select_from(WantedItem)
+            .where(WantedItem.upgrade_candidate == 1, WantedItem.status != "ignored")
+        )
         return self.session.execute(stmt).scalar()
 
     def find_wanted_by_episode(

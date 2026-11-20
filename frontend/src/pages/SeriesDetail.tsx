@@ -5,7 +5,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { SeasonSummaryBar } from '@/components/library/SeasonSummaryBar'
-import { useSeriesDetail, useEpisodeSearch, useEpisodeHistory, useProcessWantedItem, useStartWantedBatch, useUpdateSeriesSettings, useRefreshAnidbMapping, useStreamingEnabled, useSeriesFansubPrefs, useRescanSeries } from '@/hooks/useApi'
+import { useSeriesDetail, useEpisodeSearch, useEpisodeHistory, useProcessWantedItem, useStartWantedBatch, useUpdateSeriesSettings, useRefreshAnidbMapping, useStreamingEnabled, useSeriesFansubPrefs, useRescanSeries, useAcceptSubtitleQuality } from '@/hooks/useApi'
 import { useWantedItems, useUpdateWantedStatus } from '@/hooks/useWantedApi'
 import {
   ArrowLeft, Loader2,
@@ -63,6 +63,7 @@ export function SeriesDetailPage() {
     1, 200, 'episode', undefined, undefined, false, undefined, seriesId ?? undefined
   )
   const updateWantedStatus = useUpdateWantedStatus()
+  const acceptQuality = useAcceptSubtitleQuality()
 
   const episodeWantedMap = useMemo((): Map<number, number> => {
     const map = new Map<number, number>()
@@ -506,6 +507,7 @@ export function SeriesDetailPage() {
       return series.target_languages.some((lang) => {
         const score = ep.subtitle_scores?.[lang] ?? null
         const fmt = ep.subtitles[lang]
+        if (ep.subtitle_quality_accepted?.[lang]) return false
         return fmt != null && fmt !== '' && score !== null && score < LOW_SCORE_THRESHOLD
       })
     }).length
@@ -796,8 +798,10 @@ export function SeriesDetailPage() {
                   if (wantedId != null) updateWantedStatus.mutate({ itemId: wantedId, status: 'ignored' })
                 }}
                 onAcceptEpisode={(episodeId) => {
-                  const wantedId = episodeWantedMap.get(episodeId)
-                  if (wantedId != null) updateWantedStatus.mutate({ itemId: wantedId, status: 'ignored' })
+                  // Stored on the subtitles themselves (#255): the low-score state
+                  // comes from their scores, and many episodes have no wanted row.
+                  const ep = series.episodes?.find((e) => e.id === episodeId)
+                  if (ep?.file_path) acceptQuality.mutate({ filePath: ep.file_path })
                 }}
               />
             ) : seasonGroups.length === 0 ? (

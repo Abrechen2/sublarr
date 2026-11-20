@@ -5,6 +5,21 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.21.2] - 2026-11-20
+
+### Fixed
+- **Accepting a low-score subtitle did nothing** — The episode Accept button
+  ("I'm ok with this quality") only set a wanted entry to ignored, while the
+  low-score warning comes from the subtitle's score, so the warning stayed,
+  and without a wanted entry the click had no effect at all (#255). The
+  decision is now stored with the subtitle: the warning, the low-score
+  counters and the upgrade search leave it alone, the score itself is kept,
+  and a newer subtitle is judged again.
+- **Dashboard Accept and Skip were rejected** — The attention banner sent
+  wanted statuses the backend does not know ("accepted", "skipped") and got
+  a 400 back. Accept now uses the same stored decision, Skip ignores the
+  item, and ignored items no longer appear there as low-score.
+
 ## [1.21.1] - 2026-11-18
 
 ### Fixed
