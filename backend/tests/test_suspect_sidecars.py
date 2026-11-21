@@ -527,8 +527,12 @@ class TestAutoSyncRunner:
             self._runner()._auto_sync("/m/ep.de.ass", "/m/ep.mkv")
         quarantine.assert_called_once()
 
-    def test_a_framerate_rejection_does_not(self):
+    def test_a_framerate_rejection_does_not(self, tmp_path):
         from services.video_sync import SyncSanityThresholdError
+
+        sub, video = tmp_path / "ep.de.ass", tmp_path / "ep.mkv"
+        sub.write_text(ASS)
+        video.touch()
 
         err = SyncSanityThresholdError("framerate scale factor 1.043")
         with (
@@ -536,7 +540,7 @@ class TestAutoSyncRunner:
             patch("services.suspect_sidecars.quarantine_wrong_sidecar") as quarantine,
             pytest.raises(SyncSanityThresholdError),
         ):
-            self._runner()._auto_sync("/m/ep.de.ass", "/m/ep.mkv")
+            self._runner()._auto_sync(str(sub), str(video))
         quarantine.assert_not_called()
 
 

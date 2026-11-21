@@ -21,6 +21,7 @@ Error taxonomy:
 from __future__ import annotations
 
 import logging
+import os
 import time
 from datetime import UTC, datetime, timedelta
 
@@ -410,6 +411,15 @@ class SubtitleAutomationRunner:
 
             quarantine_wrong_sidecar(subtitle_path, video_path, str(exc))
             raise
+        except Exception as exc:
+            # A subtitle replaced before its sync ran (an SRT upgraded to an
+            # ASS, prod 2026-11-21) or a video gone fails the same way on
+            # every retry; close the row instead of walking the backoff
+            # ladder. The replacement queued a sync of its own.
+            gone = [p for p in (subtitle_path, video_path) if not os.path.exists(p)]
+            if gone:
+                raise FileNotFoundError(f"gone before its sync: {', '.join(gone)}") from exc
+            raise
         logger.info("auto-sync: complete for %s", subtitle_path)
 
     def process_one(self, *, task_types: set[str] | None = None) -> bool:
@@ -495,10 +505,10 @@ class SubtitleAutomationRunner:
             return True
         except FileNotFoundError as exc:
             logger.warning(
-                "subtitle_automation: media file gone for wanted_item=%s (%s); "
-                "marking terminal failure",
+                "subtitle_automation: %s for wanted_item=%s: %s; marking terminal failure",
+                task_type,
                 wanted_item_id,
-                file_path,
+                exc,
             )
             self._repo.mark_failed(entry_id, error=str(exc), next_retry_at=None)
             return True
@@ -515,7 +525,8 @@ class SubtitleAutomationRunner:
             delay = compute_backoff(attempt=prior_attempt + 1)
             retry_at = datetime.now(UTC) + delay
             logger.warning(
-                "subtitle_automation: extract failed for wanted_item=%s: %s — retry in %s",
+                "subtitle_automation: %s failed for wanted_item=%s: %s — retry in %s",
+                task_type,
                 wanted_item_id,
                 exc,
                 delay,

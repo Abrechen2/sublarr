@@ -184,7 +184,7 @@ class TestRunnerAutoSync:
         assert entry["state"] == "failed"
         assert entry["next_retry_at"] is None
 
-    def test_sync_unavailable_is_retried(self, repo, runner):
+    def test_sync_unavailable_is_retried(self, repo, runner, media):
         """ffsubsync missing needs an operator — and then a retry.
 
         This asserted the opposite until 2026-08-16. "Needs an operator" was
@@ -197,8 +197,8 @@ class TestRunnerAutoSync:
 
         repo.enqueue(
             wanted_item_id=53,
-            file_path="/m/c.de.srt",
-            video_path="/m/c.mkv",
+            file_path=media[0],
+            video_path=media[1],
             target_language="de",
             task_type=AUTO_SYNC,
         )
@@ -212,12 +212,12 @@ class TestRunnerAutoSync:
         assert entry["state"] == "failed"
         assert entry["next_retry_at"] is not None
 
-    def test_timeout_is_retried(self, repo, runner):
+    def test_timeout_is_retried(self, repo, runner, media):
         """The 600s cap is a load symptom — that one is worth trying again."""
         repo.enqueue(
             wanted_item_id=54,
-            file_path="/m/d.de.srt",
-            video_path="/m/d.mkv",
+            file_path=media[0],
+            video_path=media[1],
             target_language="de",
             task_type=AUTO_SYNC,
         )
@@ -246,6 +246,63 @@ class TestRunnerAutoSync:
         entry = repo.get_by_wanted_item(55, task_type=AUTO_SYNC)
         assert entry["state"] == "failed"
         assert entry["next_retry_at"] is None
+
+    def test_subtitle_replaced_before_the_sync_is_terminal(self, repo, runner, media):
+        """Prod 2026-11-21: an SRT was swapped for a better ASS before its sync
+        ran; ffsubsync could not read the gone file and the row was retried
+        on the backoff ladder for days."""
+        sub, vid = media
+        repo.enqueue(
+            wanted_item_id=56,
+            file_path=sub + ".gone",
+            video_path=vid,
+            target_language="de",
+            task_type=AUTO_SYNC,
+        )
+        with patch(
+            "services.video_sync.sync_with_ffsubsync",
+            side_effect=RuntimeError("ffsubsync failed: unable to read input subtitles"),
+        ):
+            assert runner.process_one() is True
+
+        entry = repo.get_by_wanted_item(56, task_type=AUTO_SYNC)
+        assert entry["state"] == "failed"
+        assert entry["next_retry_at"] is None
+
+    def test_video_gone_before_the_sync_is_terminal(self, repo, runner, media):
+        sub, vid = media
+        repo.enqueue(
+            wanted_item_id=57,
+            file_path=sub,
+            video_path=vid + ".gone",
+            target_language="de",
+            task_type=AUTO_SYNC,
+        )
+        with patch(
+            "services.video_sync.sync_with_ffsubsync",
+            side_effect=RuntimeError("ffsubsync failed: unable to read reference"),
+        ):
+            assert runner.process_one() is True
+
+        assert repo.get_by_wanted_item(57, task_type=AUTO_SYNC)["next_retry_at"] is None
+
+    def test_failure_with_both_files_present_is_still_retried(self, repo, runner, media):
+        """Positive control: only a vanished file closes the row."""
+        sub, vid = media
+        repo.enqueue(
+            wanted_item_id=58,
+            file_path=sub,
+            video_path=vid,
+            target_language="de",
+            task_type=AUTO_SYNC,
+        )
+        with patch(
+            "services.video_sync.sync_with_ffsubsync",
+            side_effect=RuntimeError("ffsubsync timed out after 600s"),
+        ):
+            assert runner.process_one() is True
+
+        assert repo.get_by_wanted_item(58, task_type=AUTO_SYNC)["next_retry_at"] is not None
 
 
 # ===========================================================================
@@ -449,13 +506,13 @@ class TestMissingEngineIsRetryable:
             runner.process_one(task_types={AUTO_SYNC})
         return repo.claim_next(task_types={AUTO_SYNC}, now=None)
 
-    def test_unavailable_engine_keeps_a_retry_date(self, app_ctx, repo, runner):
+    def test_unavailable_engine_keeps_a_retry_date(self, app_ctx, repo, runner, media):
         from services.video_sync import SyncUnavailableError
 
         entry_id = repo.enqueue(
             wanted_item_id=510,
-            file_path="/m/a.de.srt",
-            video_path="/m/a.mkv",
+            file_path=media[0],
+            video_path=media[1],
             target_language="de",
             task_type=AUTO_SYNC,
         )
