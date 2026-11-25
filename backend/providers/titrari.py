@@ -13,7 +13,6 @@ import logging
 import os
 import re
 from typing import ClassVar
-from urllib.parse import parse_qs, urljoin, urlparse
 
 from archive_utils import extract_subtitles_from_rar, extract_subtitles_from_zip
 from providers import _stream_download, register_provider
@@ -49,15 +48,14 @@ except ImportError:
     logger.debug("Titrari: guessit not installed, using regex fallback for release parsing")
 
 
-BASE_URL = "https://www.titrari.ro"
-_SITE_HOST = urlparse(BASE_URL).netloc
-# Link/column texts that are labels, not a release name.
-_HEADER_TEXTS = frozenset({"titlu", "titlul", "descarca", "download"})
-# index.php?page=<name> values that are site chrome, never a subtitle page.
-_NON_SUBTITLE_PAGES = frozenset(
-    {"like", "comentarii", "comments", "comment", "lista", "cautare", "stiri", "news"}
+from providers.titrari_parsing import (  # noqa: E402 — after the optional imports
+    BASE_URL,
+    SEARCH_URL,
+    parse_entries,
+    pick_episode_member,
+    search_params,
+    season_covered,
 )
-SEARCH_URL = f"{BASE_URL}/index.php"
 
 _SUBTITLE_EXTENSIONS = {".srt", ".ass", ".ssa", ".sub", ".vtt"}
 _FORMAT_MAP = {
@@ -73,27 +71,6 @@ _BROWSER_UA = (
     "AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/120.0.0.0 Safari/537.36"
 )
-
-
-def _is_subtitle_detail_href(href: str) -> bool:
-    """True for an on-site link that points at one subtitle's detail page.
-
-    Result rows also hold like/comment/navigation links and unrelated news
-    links; those must not become results (Forgejo #21). A detail page is an
-    on-site link that carries a numeric id and is not one of the known
-    site-chrome pages.
-    """
-    parsed = urlparse(urljoin(BASE_URL, href))
-    if parsed.netloc != _SITE_HOST:
-        return False
-    params = parse_qs(parsed.query)
-    if params.get("page", [""])[0].lower() in _NON_SUBTITLE_PAGES:
-        return False
-    return any(
-        values[0].isdigit()
-        for key, values in params.items()
-        if key == "id" or re.fullmatch(r"z\d", key)
-    )
 
 
 def _parse_episode_info(text: str) -> dict:
@@ -227,29 +204,22 @@ class TitrariProvider(SubtitleProvider):
             return []
 
         # Build search term
-        if query.is_episode:
-            search_term = (
-                f"{query.series_title or query.title} S{query.season:02d}E{query.episode:02d}"
-            )
-        elif query.is_movie:
-            search_term = query.title
-            if query.year:
-                search_term += f" {query.year}"
-        else:
-            search_term = query.title or query.series_title
-            if not search_term:
-                logger.warning("Titrari: no search term available")
-                return []
+        # The site matches the bare title only; series come as season packs.
+        search_term = (
+            ((query.series_title or query.title) if query.is_episode else query.title)
+            or query.title
+            or query.series_title
+        )
+        if not search_term:
+            logger.warning("Titrari: no search term available")
+            return []
 
         logger.debug("Titrari: searching for '%s'", search_term)
 
         try:
             resp = self.session.get(
                 SEARCH_URL,
-                params={
-                    "page": "cautare",
-                    "titlufilm": search_term,
-                },
+                params=search_params(search_term),
             )
 
             if resp.status_code == 403:
@@ -272,132 +242,64 @@ class TitrariProvider(SubtitleProvider):
             return []
 
     def _parse_search_results(self, html: str, query: VideoQuery) -> list[SubtitleResult]:
-        """Parse HTML search results page into SubtitleResult objects."""
-        results = []
+        """Turn a search page into results, one per download link."""
         parser = "lxml" if _can_use_lxml() else "html.parser"
-        soup = BeautifulSoup(html, parser)
-
-        # Titrari renders results in HTML tables
-        # Look for result rows — try multiple selectors for resilience
-        rows = soup.find_all("tr")
-        if not rows:
-            # Try div-based layout as fallback
-            rows = soup.find_all("div", class_=re.compile(r"result|subtitle|entry", re.I))
-
-        if not rows:
-            logger.debug("Titrari: no result rows found in HTML")
-            return []
-
-        for row in rows:
-            try:
-                result = self._parse_result_row(row, query)
-                if result:
-                    results.append(result)
-            except Exception as e:
-                logger.warning("Titrari: failed to parse result row: %s", e)
-                continue
-
+        entries = parse_entries(BeautifulSoup(html, parser))
+        results = [self._result_from_entry(entry, query) for entry in entries]
         logger.info("Titrari: found %d results", len(results))
         return results
 
-    def _parse_result_row(self, row, query: VideoQuery) -> SubtitleResult | None:
-        """Parse a single result row into a SubtitleResult.
-
-        Returns None if the row is not a valid subtitle result.
-        """
-        # Extract all links in the row
-        links = row.find_all("a", href=True)
-        if not links:
-            return None
-
-        # Look for a download link
-        download_url = ""
-        detail_url = ""
-        release_name = ""
-
-        for link in links:
-            href = link.get("href", "")
-            text = link.get_text(strip=True)
-
-            # Download links typically contain 'download' or end with archive extensions
-            if "download" in href.lower() or any(
-                href.lower().endswith(ext) for ext in [".zip", ".rar", ".srt"]
-            ):
-                download_url = urljoin(BASE_URL, href)
-            elif text and len(text) > 3 and _is_subtitle_detail_href(href):
-                # Subtitle title/detail link
-                detail_url = urljoin(BASE_URL, href)
-                if not release_name and text.lower() not in _HEADER_TEXTS:
-                    release_name = text
-
-        # If no download URL found, use the detail URL (we'll resolve it during download)
-        if not download_url and not detail_url:
-            return None
-
-        effective_url = download_url or detail_url
-
-        # Get the full text content for release name matching
-        row_text = row.get_text(" ", strip=True)
-        if not release_name:
-            release_name = row_text[:200]  # cap at reasonable length
-
-        # Skip header/navigation rows
-        if len(release_name) < 3 or release_name.lower() in _HEADER_TEXTS:
-            return None
-
-        # Detect format from filename or default to SRT
+    def _result_from_entry(self, entry, query: VideoQuery) -> SubtitleResult:
+        release_name = entry.release_info
+        lowered = release_name.lower()
         fmt = SubtitleFormat.SRT
-        for ext_str in [".ass", ".ssa", ".srt", ".sub"]:
-            if ext_str in release_name.lower():
+        for ext_str in (".ass", ".ssa", ".srt", ".sub"):
+            if ext_str in lowered:
                 fmt = _FORMAT_MAP.get(ext_str, SubtitleFormat.SRT)
                 break
 
-        # Build matches
         matches = set()
         parsed = _parse_episode_info(release_name)
-
+        title = entry.title.lower()
         if query.is_episode:
             series_title = query.series_title or query.title
-            if series_title and series_title.lower() in release_name.lower():
+            if series_title and series_title.lower() in title:
                 matches.add("series")
-            if parsed.get("season") == query.season:
+            if season_covered(entry.title, query.season) or parsed.get("season") == query.season:
                 matches.add("season")
-            if parsed.get("episode") == query.episode:
+            if parsed.get("episode") == query.episode and parsed.get("season") == query.season:
                 matches.add("episode")
         elif query.is_movie:
-            if query.title and query.title.lower() in release_name.lower():
+            if query.title and query.title.lower() in title:
                 matches.add("title")
-            if query.year and str(query.year) in release_name:
+            if query.year and str(query.year) in entry.title:
                 matches.add("year")
-
-        if query.release_group and query.release_group.lower() in release_name.lower():
+        if query.release_group and query.release_group.lower() in lowered:
             matches.add("release_group")
         if query.resolution and parsed.get("resolution") == query.resolution:
             matches.add("resolution")
 
-        # Generate a unique subtitle ID from the URL
-        subtitle_id = effective_url.split("/")[-1] if "/" in effective_url else effective_url
-
         return SubtitleResult(
             provider_name=self.name,
-            subtitle_id=f"titrari:{subtitle_id}",
+            subtitle_id=f"titrari:{entry.subtitle_id}",
             language="ro",
             format=fmt,
             filename=release_name[:100],
-            download_url=effective_url,
+            download_url=entry.download_url,
             release_info=release_name,
             matches=matches,
             provider_data={
-                "is_detail_page": not download_url,
-                "detail_url": detail_url,
+                "is_detail_page": False,
+                "season": query.season if query.is_episode else None,
+                "episode": query.episode if query.is_episode else None,
             },
         )
 
     def download(self, result: SubtitleResult) -> bytes:
-        """Download a subtitle from titrari.ro.
+        """Download a subtitle from titrari.ro, extracting it from a ZIP/RAR archive.
 
-        Handles both direct downloads and detail page resolution,
-        plus RAR/ZIP archive extraction.
+        For an episode the archive is usually a season pack: the member for the
+        requested episode is taken, never simply the first file.
         """
         if not self.session:
             raise RuntimeError("Titrari not initialized")
@@ -406,43 +308,41 @@ class TitrariProvider(SubtitleProvider):
         if not url:
             raise ValueError("No download URL")
 
-        # P1 (detail-page pre-validation) — validate BEFORE the detail fetch
-        if result.provider_data.get("is_detail_page") and url:
-            ok_detail, err_detail = validate_download_url(url, self.name)
-            if not ok_detail:
-                raise ProviderError(f"Titrari detail URL rejected: {err_detail}")
-
-        # If the URL points to a detail page, fetch it and find the actual download link
-        if result.provider_data.get("is_detail_page"):
-            url = self._resolve_download_url(url)
-            if not url:
-                raise ProviderError("Titrari: could not find download link on detail page")
-
-        # P1: Validate resolved download URL
         url_ok, url_err = validate_download_url(url, self.name)
         if not url_ok:
             raise ProviderError(f"Titrari download URL rejected: {url_err}")
 
         try:
             # P5: 50 MB streaming cap
+            # get.php redirects to the listing page unless the request comes from the site.
             content = _stream_download(
-                self.session, url, timeout=self.timeout, provider_name=self.name
+                self.session,
+                url,
+                timeout=self.timeout,
+                headers={"Referer": f"{BASE_URL}/"},
+                provider_name=self.name,
             )
         except Exception as e:
             raise RuntimeError(f"Titrari download failed: {e}") from e
 
-        # Try to extract from archive
-        extracted = None
+        entries = None
         if content[:4] == b"PK\x03\x04":
             entries = extract_subtitles_from_zip(content)
-            extracted = entries[0] if entries else None
         elif content[:4] == b"Rar!":
             try:
                 entries = extract_subtitles_from_rar(content)
-                extracted = entries[0] if entries else None
-            except ImportError:
-                logger.warning("Titrari: rarfile not installed, cannot extract RAR archive")
-        if extracted:
+            except ImportError as e:
+                raise ProviderError("Titrari: rarfile not installed, cannot extract RAR") from e
+        elif content.lstrip()[:15].lower().startswith((b"<!doctype html", b"<html")):
+            raise ProviderError("Titrari: got an HTML page instead of a subtitle")
+
+        if entries is not None:
+            season = result.provider_data.get("season")
+            episode = result.provider_data.get("episode")
+            extracted = pick_episode_member(entries, season, episode)
+            if extracted is None:
+                wanted = f" for S{season:02d}E{episode:02d}" if season and episode else ""
+                raise ProviderError(f"Titrari: archive has no matching subtitle{wanted}")
             filename, content = extracted
             result.filename = filename
             result.format = _detect_format_from_filename(filename)
@@ -450,37 +350,6 @@ class TitrariProvider(SubtitleProvider):
         result.content = content
         logger.info("Titrari: downloaded %s (%d bytes)", result.filename, len(content))
         return content
-
-    def _resolve_download_url(self, detail_url: str) -> str | None:
-        """Fetch a detail page and extract the actual download link."""
-        if not _HAS_BS4:
-            return None
-
-        try:
-            resp = self.session.get(detail_url)
-            if resp.status_code != 200:
-                return None
-
-            parser = "lxml" if _can_use_lxml() else "html.parser"
-            soup = BeautifulSoup(resp.text, parser)
-
-            # Look for download links on the detail page
-            for link in soup.find_all("a", href=True):
-                href = link.get("href", "")
-                text = (link.get_text(strip=True) or "").lower()
-                if "download" in href.lower() or "descarca" in text.lower():
-                    return urljoin(BASE_URL, href)
-
-            # Fallback: look for links to archive files
-            for link in soup.find_all("a", href=True):
-                href = link.get("href", "")
-                if any(href.lower().endswith(ext) for ext in [".zip", ".rar", ".srt", ".ass"]):
-                    return urljoin(BASE_URL, href)
-
-        except Exception as e:
-            logger.warning("Titrari: failed to resolve download URL: %s", e)
-
-        return None
 
 
 def _can_use_lxml() -> bool:
