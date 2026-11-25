@@ -788,6 +788,23 @@ class WantedRepository(BaseRepository, _WantedUpsertMixin, _WantedUpdatesMixin):
         rows = self.session.execute(stmt).all()
         return {row[0]: row[1] for row in rows}
 
+    def get_series_low_score_counts(self, *, standalone: bool = False) -> dict:
+        """Open upgrade candidates per series — the dashboard's low-score count (#50).
+
+        Keyed by Sonarr series id, or by standalone series id with ``standalone``.
+        """
+        column = WantedItem.standalone_series_id if standalone else WantedItem.sonarr_series_id
+        stmt = (
+            select(column, func.count())
+            .where(
+                column.isnot(None),
+                WantedItem.upgrade_candidate == 1,
+                WantedItem.status != "ignored",
+            )
+            .group_by(column)
+        )
+        return {row[0]: row[1] for row in self.session.execute(stmt).all()}
+
     def get_wanted_by_subtitle_type(self) -> dict:
         """Get wanted item counts grouped by subtitle_type."""
         stmt = select(WantedItem.subtitle_type, func.count()).group_by(WantedItem.subtitle_type)

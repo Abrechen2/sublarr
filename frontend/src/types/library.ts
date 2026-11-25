@@ -28,6 +28,10 @@ export interface SeriesInfo {
   profile_id: number | null
   profile_name: string
   missing_count: number
+  // Open upgrade candidates — the dashboard's low-score count (#50).
+  low_score_count?: number
+  // Sonarr's anime classification (tag, seriesType or genre) (#50).
+  is_anime?: boolean
   // "sonarr" | "standalone" — present in mixed-mode library responses.
   source?: string
   // Standalone titles have a negative `id`; this is their positive row id.

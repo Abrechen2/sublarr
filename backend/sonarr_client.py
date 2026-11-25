@@ -115,6 +115,14 @@ def series_aliases(series: dict) -> list[tuple[str, int | None, int | None]]:
     ]
 
 
+def is_anime_series(series: dict, anime_tag_ids: set) -> bool:
+    """Sonarr's view of an anime: the anime tag, seriesType=anime or the Anime genre."""
+    has_tag = bool(anime_tag_ids) and any(t in anime_tag_ids for t in series.get("tags", []))
+    is_anime_type = (series.get("seriesType") or "").lower() == "anime"
+    has_anime_genre = "anime" in [g.lower() for g in series.get("genres", [])]
+    return has_tag or is_anime_type or has_anime_genre
+
+
 class SonarrClient(_SonarrDiagnosticsMixin):
     """Sonarr v3 REST API Client."""
 
@@ -355,27 +363,20 @@ class SonarrClient(_SonarrDiagnosticsMixin):
         result = self._get("/tag")
         return result or []
 
+    def anime_tag_ids(self, anime_tag="anime") -> set:
+        """Ids of the Sonarr tags labelled ``anime_tag``."""
+        return {
+            t["id"] for t in self.get_tags() if t.get("label", "").lower() == anime_tag.lower()
+        }
+
     def get_anime_series(self, anime_tag="anime"):
         """Get series filtered by anime tag, seriesType=anime, or 'Anime' genre.
 
         Returns:
             list: List of anime series dicts
         """
-        tags = self.get_tags()
-        anime_tag_ids = set(
-            t["id"] for t in tags if t.get("label", "").lower() == anime_tag.lower()
-        )
-
-        all_series = self.get_series()
-        anime_series = []
-        for series in all_series:
-            has_tag = anime_tag_ids and any(
-                tag_id in anime_tag_ids for tag_id in series.get("tags", [])
-            )
-            is_anime_type = series.get("seriesType", "").lower() == "anime"
-            has_anime_genre = "anime" in [g.lower() for g in series.get("genres", [])]
-            if has_tag or is_anime_type or has_anime_genre:
-                anime_series.append(series)
+        anime_tag_ids = self.anime_tag_ids(anime_tag)
+        anime_series = [s for s in self.get_series() if is_anime_series(s, anime_tag_ids)]
 
         logger.info("Found %d anime series (tag + seriesType + genre)", len(anime_series))
         return anime_series

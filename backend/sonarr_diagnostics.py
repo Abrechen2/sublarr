@@ -105,7 +105,10 @@ class _SonarrDiagnosticsMixin:
         Returns:
             list: Series with episode counts and file info
         """
+        from sonarr_client import is_anime_series
+
         series_list = self.get_anime_series() if anime_only else self.get_series()
+        anime_tag_ids = self.anime_tag_ids()
         result = []
 
         for series in series_list:
@@ -131,6 +134,8 @@ class _SonarrDiagnosticsMixin:
                         "",
                     ),
                     "status": series.get("status"),
+                    # The library's "Anime" filter reads this (#50).
+                    "is_anime": is_anime_series(series, anime_tag_ids),
                 }
             )
 

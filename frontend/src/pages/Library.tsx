@@ -1,3 +1,4 @@
+import { matchesSeriesChip } from './libraryChips'
 import { useState, useMemo, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLibrary, useLanguageProfiles, useAssignProfile, useBulkAssignProfile, useConfig } from '@/hooks/useApi'
@@ -341,28 +342,8 @@ export function LibraryPage() {
     }
 
     // Chip filter
-    if (activeTab === 'series') {
-      if (activeChip === 'missing') {
-        items = items.filter((item) => ((item as SeriesInfo).missing_count ?? 0) > 0)
-      } else if (activeChip === 'complete') {
-        items = items.filter((item) => {
-          const s = item as SeriesInfo
-          return s.missing_count === 0 && s.episodes > 0
-        })
-      } else if (activeChip === 'low_score') {
-        items = items.filter((item) => {
-          const s = item as SeriesInfo
-          if (s.episodes === 0) return false
-          const pct = Math.round((s.episodes_with_files / s.episodes) * 100)
-          return pct < 50
-        })
-      } else if (activeChip === 'anime') {
-        items = items.filter((item) =>
-          item.title.toLowerCase().includes('anime') ||
-          (item as SeriesInfo).status === 'continuing' ||
-          (item as SeriesInfo).seasons > 0,
-        )
-      }
+    if (activeTab === 'series' && activeChip !== 'all') {
+      items = items.filter((item) => matchesSeriesChip(item as SeriesInfo, activeChip))
     }
 
     // Profile filter (series only)

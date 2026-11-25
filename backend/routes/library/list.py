@@ -72,7 +72,7 @@ def get_library():
                       additionalProperties: true
     """
     from db.profiles import get_default_profile, get_series_profile_map
-    from db.wanted import get_series_missing_counts
+    from db.wanted import get_series_low_score_counts, get_series_missing_counts
 
     result = {"series": [], "movies": []}
     sonarr_returned = False
@@ -88,6 +88,7 @@ def get_library():
             # Enrich with profile assignments and missing counts
             profile_map = get_series_profile_map()
             missing_map = get_series_missing_counts()
+            low_score_map = get_series_low_score_counts()
             default_profile = None
             for s in series_list:
                 sid = s["id"]
@@ -102,6 +103,7 @@ def get_library():
                         default_profile.get("name", "Default") if default_profile else "Default"
                     )
                 s["missing_count"] = missing_map.get(sid, 0)
+                s["low_score_count"] = low_score_map.get(sid, 0)
             result["series"] = series_list
     except Exception as e:
         logger.warning("Failed to get Sonarr library: %s", e)
@@ -155,6 +157,7 @@ def get_library():
                         )
                     ).fetchall()
                     series_missing_map = {row[0]: row[1] for row in series_missing_rows}
+                    series_low_score_map = get_series_low_score_counts(standalone=True)
 
                     for s in get_standalone_series():
                         # Use the API endpoint for local posters (browser can't load file:// URLs)
@@ -180,6 +183,8 @@ def get_library():
                                 "profile_id": assigned.get("profile_id", profile_id),
                                 "profile_name": assigned.get("profile_name", profile_name),
                                 "missing_count": series_missing_map.get(s["id"], 0),
+                                "low_score_count": series_low_score_map.get(s["id"], 0),
+                                "is_anime": bool(s.get("is_anime")),
                                 "source": "standalone",
                             }
                         )

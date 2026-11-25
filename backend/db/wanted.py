@@ -263,6 +263,11 @@ def get_series_missing_counts() -> dict:
     return _get_repo().get_series_missing_counts()
 
 
+def get_series_low_score_counts(*, standalone: bool = False) -> dict:
+    """Open upgrade candidates per series (Sonarr id, or standalone id)."""
+    return _get_repo().get_series_low_score_counts(standalone=standalone)
+
+
 def get_wanted_for_series(series_id: int, *, standalone: bool = False) -> list:
     """Get all wanted items for a Sonarr series (or a standalone one)."""
     return _get_repo().get_wanted_for_series(series_id, standalone=standalone)
