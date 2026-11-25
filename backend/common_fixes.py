@@ -27,6 +27,87 @@ _WATERMARK_PATTERNS = [
 
 _OVERLAP_IS_INTENTIONAL_FORMATS = ("ass", "ssa")
 
+# pysubs2 keeps line breaks as the ASS escape \N in event.text for every format
+# (the SRT writer turns them back into LF); a raw LF inside a Dialogue field
+# would be written as a bare file line and break the ASS/SSA file.
+_LINE_BREAK = "\\N"
+_OVERRIDE_OR_BREAK_RE = re.compile(r"\{[^}]*\}|\\[Nn]")
+_POSITIONING_TAG_RE = re.compile(r"\\(?:an?\d|pos|move)")
+_MAX_MERGE_GAP_MS = 500
+_MAX_MERGE_CHARS = 20
+
+
+def _wrap_text_keeping_tags(text: str, width: int) -> str:
+    """Wrap ``text`` at ``width`` visible chars, keeping override tags intact.
+
+    Line breaks are inserted as ASS ``\\N`` at the whitespace the wrap would
+    drop; ``{...}`` tag blocks stay where they are. Existing ``\\N``/``\\n``
+    breaks are treated as whitespace so the text is re-flowed.
+    """
+    # (visible char, original text) per position; tag blocks are zero-width.
+    units: list[tuple[str, str]] = []
+    pos = 0
+    for m in _OVERRIDE_OR_BREAK_RE.finditer(text):
+        units.extend((c, c) for c in text[pos : m.start()])
+        token = m.group(0)
+        units.append(("", token) if token.startswith("{") else (" ", " "))
+        pos = m.end()
+    units.extend((c, c) for c in text[pos:])
+
+    visible = "".join(c for c, _ in units)
+    if len(visible.strip()) <= width:
+        return text
+
+    lines = textwrap.wrap(visible, width=width, break_long_words=False)
+    # Whitespace runs the wrap dropped between consecutive lines become breaks.
+    break_spans: dict[int, int] = {}
+    cursor = 0
+    for line in lines:
+        start = visible.index(line, cursor)
+        if cursor and start > cursor:
+            break_spans[cursor] = start
+        cursor = start + len(line)
+
+    out: list[str] = []
+    vis_idx = 0
+    skip_until = 0
+    for ch, original in units:
+        if not ch:
+            out.append(original)
+            continue
+        if vis_idx in break_spans:
+            out.append(_LINE_BREAK)
+            skip_until = break_spans[vis_idx]
+        if vis_idx >= skip_until:
+            out.append(original)
+        vis_idx += 1
+    return "".join(out)
+
+
+def _can_merge_events(a: pysubs2.SSAEvent, b: pysubs2.SSAEvent) -> bool:
+    """True when ``b`` may be folded into ``a`` as a second line of the same cue.
+
+    Only consecutive, non-overlapping events that share layer, style and margins
+    qualify, and neither may carry its own position - merging those would drop
+    one of the placements (Forgejo #45).
+    """
+    gap = b.start - a.end
+    if gap < 0 or gap > _MAX_MERGE_GAP_MS:
+        return False
+    if (a.layer, a.style, a.marginl, a.marginr, a.marginv) != (
+        b.layer,
+        b.style,
+        b.marginl,
+        b.marginr,
+        b.marginv,
+    ):
+        return False
+    if _POSITIONING_TAG_RE.search(a.text) or _POSITIONING_TAG_RE.search(b.text):
+        return False
+    return (
+        len(a.plaintext.strip()) < _MAX_MERGE_CHARS and len(b.plaintext.strip()) < _MAX_MERGE_CHARS
+    )
+
 
 def apply_common_fixes(
     subs: pysubs2.SSAFile, options: dict, fmt: str | None = None
@@ -125,11 +206,7 @@ def apply_common_fixes(
         # Long line wrap
         if opts["long_line_wrap"]:
             wrap_chars = opts["wrap_chars"]
-            plain = event.plaintext.strip()
-            if len(plain) > wrap_chars:
-                wrapped = textwrap.fill(plain, width=wrap_chars, break_long_words=False)
-                # Use \n as line separator (works for both SRT and ASS)
-                text = wrapped.replace("\n", "\n")
+            text = _wrap_text_keeping_tags(text, wrap_chars)
 
         # Record ONE change per event with the final modified_text
         if text != original:
@@ -143,16 +220,16 @@ def apply_common_fixes(
     for i in sorted(to_remove, reverse=True):
         del subs.events[i]
 
-    # Short line merge: combine adjacent short events (within 500ms gap, both under 20 chars)
+    # Short line merge: combine adjacent short events of the same layer/style
+    # (non-overlapping, within 500ms gap, both under 20 chars)
     if opts["short_line_merge"]:
         i = 0
         while i < len(subs.events) - 1:
             a = subs.events[i]
             b = subs.events[i + 1]
-            gap = b.start - a.end
-            if gap <= 500 and len(a.plaintext.strip()) < 20 and len(b.plaintext.strip()) < 20:
+            if _can_merge_events(a, b):
                 ts = f"{_ms_to_str(a.start)} --> {_ms_to_str(a.end)}"
-                merged_text = a.text.rstrip() + "\n" + b.text.lstrip()
+                merged_text = a.text.rstrip() + _LINE_BREAK + b.text.lstrip()
                 changes.append(Change(i, ts, a.plaintext.strip(), merged_text, "common_fixes"))
                 a.text = merged_text
                 a.end = b.end

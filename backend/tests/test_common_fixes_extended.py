@@ -223,3 +223,123 @@ def test_overlap_fix_still_applies_to_srt():
     apply_common_fixes(subs, {"overlap_fix": True}, fmt="srt")
 
     assert subs.events[1].end == 1999
+
+
+# --- Forgejo #44: long_line_wrap on ASS/SSA ---------------------------------
+
+
+@pytest.mark.parametrize("fmt", ["ass", "ssa"])
+def test_long_line_wrap_keeps_override_tags_and_uses_ass_break(fmt):
+    """Wrapping must keep override tags and break with \\N, not a raw LF.
+
+    A raw LF inside a Dialogue field is written as a bare file line that is
+    no longer a Dialogue record, so everything after the first line was lost.
+    """
+    import pysubs2
+
+    from common_fixes import apply_common_fixes
+
+    subs = pysubs2.SSAFile()
+    subs.events.append(
+        pysubs2.SSAEvent(
+            start=1000,
+            end=5000,
+            text="{\\an8\\i1}This is a sufficiently long sentence with several words.",
+        )
+    )
+
+    apply_common_fixes(subs, {"long_line_wrap": True, "wrap_chars": 20}, fmt=fmt)
+
+    text = subs.events[0].text
+    assert "\n" not in text
+    assert text.startswith("{\\an8\\i1}")
+    assert "\\N" in text
+    assert text.replace("\\N", " ") == (
+        "{\\an8\\i1}This is a sufficiently long sentence with several words."
+    )
+    assert all(len(line) <= 20 for line in subs.events[0].plaintext.split("\n"))
+
+
+def test_long_line_wrap_keeps_inline_tag_between_words():
+    import pysubs2
+
+    from common_fixes import apply_common_fixes
+
+    subs = pysubs2.SSAFile()
+    subs.events.append(
+        pysubs2.SSAEvent(start=0, end=2000, text="aaaa bbbb {\\i1}cccc dddd{\\i0} eeee ffff")
+    )
+
+    apply_common_fixes(subs, {"long_line_wrap": True, "wrap_chars": 10}, fmt="ass")
+
+    assert "{\\i1}" in subs.events[0].text and "{\\i0}" in subs.events[0].text
+    assert subs.events[0].plaintext.replace("\n", " ") == "aaaa bbbb cccc dddd eeee ffff"
+
+
+# --- Forgejo #45: short_line_merge guards -----------------------------------
+
+
+def _merge(events, fmt="ass"):
+    import pysubs2
+
+    from common_fixes import apply_common_fixes
+
+    subs = pysubs2.SSAFile()
+    subs.events.extend(events)
+    apply_common_fixes(subs, {"short_line_merge": True}, fmt=fmt)
+    return subs
+
+
+def test_short_line_merge_keeps_overlapping_ass_layers():
+    import pysubs2
+
+    subs = _merge(
+        [
+            pysubs2.SSAEvent(start=1000, end=5000, text="{\\an8}SIGN", layer=1),
+            pysubs2.SSAEvent(start=1000, end=5000, text="{\\an2}Hello", layer=0),
+        ]
+    )
+
+    assert [e.text for e in subs.events] == ["{\\an8}SIGN", "{\\an2}Hello"]
+
+
+def test_short_line_merge_keeps_different_styles():
+    import pysubs2
+
+    subs = _merge(
+        [
+            pysubs2.SSAEvent(start=0, end=1000, text="Yes,", style="Default"),
+            pysubs2.SSAEvent(start=1100, end=2000, text="right.", style="Sign"),
+        ]
+    )
+
+    assert len(subs.events) == 2
+
+
+def test_short_line_merge_uses_ass_break_for_same_style():
+    import pysubs2
+
+    subs = _merge(
+        [
+            pysubs2.SSAEvent(start=0, end=1000, text="Yes,"),
+            pysubs2.SSAEvent(start=1100, end=2000, text="right."),
+        ]
+    )
+
+    assert len(subs.events) == 1
+    assert subs.events[0].text == "Yes,\\Nright."
+    assert (subs.events[0].start, subs.events[0].end) == (0, 2000)
+
+
+def test_short_line_merge_skips_overlapping_srt_cues():
+    import pysubs2
+
+    subs = _merge(
+        [
+            pysubs2.SSAEvent(start=0, end=1500, text="Yes,"),
+            pysubs2.SSAEvent(start=1000, end=2000, text="right."),
+        ],
+        fmt="srt",
+    )
+
+    assert len(subs.events) == 2

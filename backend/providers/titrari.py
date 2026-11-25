@@ -13,7 +13,7 @@ import logging
 import os
 import re
 from typing import ClassVar
-from urllib.parse import urljoin
+from urllib.parse import parse_qs, urljoin, urlparse
 
 from archive_utils import extract_subtitles_from_rar, extract_subtitles_from_zip
 from providers import _stream_download, register_provider
@@ -50,6 +50,13 @@ except ImportError:
 
 
 BASE_URL = "https://www.titrari.ro"
+_SITE_HOST = urlparse(BASE_URL).netloc
+# Link/column texts that are labels, not a release name.
+_HEADER_TEXTS = frozenset({"titlu", "titlul", "descarca", "download"})
+# index.php?page=<name> values that are site chrome, never a subtitle page.
+_NON_SUBTITLE_PAGES = frozenset(
+    {"like", "comentarii", "comments", "comment", "lista", "cautare", "stiri", "news"}
+)
 SEARCH_URL = f"{BASE_URL}/index.php"
 
 _SUBTITLE_EXTENSIONS = {".srt", ".ass", ".ssa", ".sub", ".vtt"}
@@ -66,6 +73,27 @@ _BROWSER_UA = (
     "AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/120.0.0.0 Safari/537.36"
 )
+
+
+def _is_subtitle_detail_href(href: str) -> bool:
+    """True for an on-site link that points at one subtitle's detail page.
+
+    Result rows also hold like/comment/navigation links and unrelated news
+    links; those must not become results (Forgejo #21). A detail page is an
+    on-site link that carries a numeric id and is not one of the known
+    site-chrome pages.
+    """
+    parsed = urlparse(urljoin(BASE_URL, href))
+    if parsed.netloc != _SITE_HOST:
+        return False
+    params = parse_qs(parsed.query)
+    if params.get("page", [""])[0].lower() in _NON_SUBTITLE_PAGES:
+        return False
+    return any(
+        values[0].isdigit()
+        for key, values in params.items()
+        if key == "id" or re.fullmatch(r"z\d", key)
+    )
 
 
 def _parse_episode_info(text: str) -> dict:
@@ -296,10 +324,10 @@ class TitrariProvider(SubtitleProvider):
                 href.lower().endswith(ext) for ext in [".zip", ".rar", ".srt"]
             ):
                 download_url = urljoin(BASE_URL, href)
-            elif href and text and len(text) > 3:
-                # Likely a subtitle title/detail link
+            elif text and len(text) > 3 and _is_subtitle_detail_href(href):
+                # Subtitle title/detail link
                 detail_url = urljoin(BASE_URL, href)
-                if not release_name:
+                if not release_name and text.lower() not in _HEADER_TEXTS:
                     release_name = text
 
         # If no download URL found, use the detail URL (we'll resolve it during download)
@@ -314,12 +342,7 @@ class TitrariProvider(SubtitleProvider):
             release_name = row_text[:200]  # cap at reasonable length
 
         # Skip header/navigation rows
-        if len(release_name) < 3 or release_name.lower() in (
-            "titlu",
-            "titlul",
-            "descarca",
-            "download",
-        ):
+        if len(release_name) < 3 or release_name.lower() in _HEADER_TEXTS:
             return None
 
         # Detect format from filename or default to SRT
