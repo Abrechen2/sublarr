@@ -1,9 +1,13 @@
 """Scoring weights, modifiers, and presets endpoints."""
 
+import logging
+
 from flask import jsonify, request
 
 from cache_response import cached_get, invalidate_response_cache
 from routes.hooks import bp
+
+logger = logging.getLogger(__name__)
 
 # ---- Scoring Weight endpoints ------------------------------------------------
 
@@ -97,15 +101,41 @@ def update_weights():
               schema:
                 type: object
     """
-    from db.scoring import get_all_scoring_weights, set_scoring_weights
-    from providers.base import invalidate_scoring_cache
+    from db.scoring import apply_scoring_preset, get_all_scoring_weights
+    from providers.base import EPISODE_SCORES, MOVIE_SCORES, invalidate_scoring_cache
+    from scoring_presets import MAX_WEIGHT, MIN_WEIGHT
 
     data = request.get_json(silent=True) or {}
+    if not isinstance(data, dict):
+        return jsonify({"error": "Payload must be a JSON object"}), 400
 
-    if "episode" in data and isinstance(data["episode"], dict):
-        set_scoring_weights("episode", data["episode"])
-    if "movie" in data and isinstance(data["movie"], dict):
-        set_scoring_weights("movie", data["movie"])
+    allowed = {"episode": set(EPISODE_SCORES), "movie": set(MOVIE_SCORES)}
+    weights = {t: data[t] for t in allowed if isinstance(data.get(t), dict)}
+    # Validate everything before writing anything, then write in one
+    # transaction: a bad value used to fail halfway with a 500 (#56 sweep).
+    for score_type, values in weights.items():
+        for key, value in values.items():
+            if key not in allowed[score_type]:
+                # Not a weight (a key an older version left behind): dropped,
+                # never stored. The UI sends back whatever GET returned.
+                continue
+            if (
+                not isinstance(value, int)
+                or isinstance(value, bool)
+                or not MIN_WEIGHT <= value <= MAX_WEIGHT
+            ):
+                return jsonify(
+                    {"error": f"{score_type}.{key} must be an integer {MIN_WEIGHT}..{MAX_WEIGHT}"}
+                ), 400
+    known = {
+        t: {k: v for k, v in values.items() if k in allowed[t]} for t, values in weights.items()
+    }
+    dropped = sorted(
+        f"{t}.{k}" for t, values in weights.items() for k in values if k not in allowed[t]
+    )
+    if dropped:
+        logger.info("Scoring weights: ignoring unknown keys %s", ", ".join(dropped))
+    apply_scoring_preset(known, {})
 
     invalidate_scoring_cache()
     invalidate_response_cache()
@@ -212,7 +242,7 @@ def update_modifiers():
                 additionalProperties:
                   type: integer
     """
-    from db.scoring import get_all_provider_modifiers, set_provider_modifier
+    from db.scoring import apply_scoring_preset, get_all_provider_modifiers
     from providers.base import invalidate_scoring_cache
 
     data = request.get_json(silent=True) or {}
@@ -222,14 +252,19 @@ def update_modifiers():
     # Cap key length so a long string can't DoS the scoring table; the
     # int() cast must be guarded so a non-numeric value gets a 400 instead
     # of crashing into a 500 inside the loop.
+    # Validate the whole payload first and write it in one transaction: an
+    # invalid value late in the payload used to leave the earlier ones saved,
+    # and an infinite float crashed int() with a 500 (#56 sweep).
+    modifiers: dict[str, int] = {}
     for provider_name, modifier in data.items():
         if not isinstance(provider_name, str) or len(provider_name) > 64:
             return jsonify({"error": "provider name must be a string ≤ 64 chars"}), 400
         try:
             mod_int = int(modifier)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, OverflowError):
             return jsonify({"error": f"modifier for {provider_name} must be an integer"}), 400
-        set_provider_modifier(provider_name, max(-100, min(mod_int, 100)))
+        modifiers[provider_name] = max(-100, min(mod_int, 100))
+    apply_scoring_preset({}, modifiers)
 
     invalidate_scoring_cache()
     invalidate_response_cache()
