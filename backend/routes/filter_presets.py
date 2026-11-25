@@ -101,7 +101,7 @@ def create_filter_preset():
         preset = create_preset(name, scope, conditions, is_default)
         return jsonify(preset), 201
     except ValueError as e:
-        return jsonify({"error": str(e)}), 422
+        return jsonify({"error": str(e)}), 422  # user-facing-error
 
 
 @bp.route("/filter-presets/<int:preset_id>", methods=["PUT"])
@@ -148,7 +148,7 @@ def update_filter_preset(preset_id: int):
             **{k: v for k, v in data.items() if k in ("name", "conditions", "is_default")},
         )
     except ValueError as e:
-        return jsonify({"error": str(e)}), 422
+        return jsonify({"error": str(e)}), 422  # user-facing-error
     if not preset:
         return jsonify({"error": "Not found"}), 404
     return jsonify(preset)

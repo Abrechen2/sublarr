@@ -153,10 +153,13 @@ def extract_embedded_sub(item_id):
     try:
         result = _extract_embedded_sub(item_id, file_path, auto_translate=False)
     except FileNotFoundError as exc:
-        return jsonify({"error": str(exc)}), 404
+        logger.warning("extract: file vanished for item %s: %s", item_id, exc)
+        return jsonify({"error": "File not found"}), 404
     except LookupError as exc:
-        return jsonify({"error": str(exc)}), 404
+        logger.info("extract: no stream for item %s: %s", item_id, exc)
+        return jsonify({"error": "No suitable subtitle stream found"}), 404
     except ValueError as exc:
-        return jsonify({"error": str(exc)}), 400
+        logger.warning("extract: rejected item %s: %s", item_id, exc)
+        return jsonify({"error": "This file cannot be extracted"}), 400
 
     return jsonify(result)

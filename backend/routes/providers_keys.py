@@ -89,7 +89,7 @@ def update_key(name: str, row_id: int):
     try:
         updated = repo.update(row_id, **fields)
     except ValueError as ve:
-        return jsonify({"error": str(ve)}), 400
+        return jsonify({"error": str(ve)}), 400  # user-facing-error
     if not updated:
         return jsonify({"error": "not found"}), 404
     _invalidate_cache(name)

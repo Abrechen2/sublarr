@@ -14,7 +14,8 @@ def test_a_drain_that_raises_answers_with_an_error(client):
         response = client.post("/api/v1/wanted/automation/run-now")
 
     assert response.status_code == 500
-    assert "database is locked" in response.get_json()["error"]
+    assert response.get_json()["error"] == "Drain failed"
+    assert "database is locked" not in response.get_data(as_text=True)
 
 
 def test_a_drain_that_runs_still_reports_its_count(client):

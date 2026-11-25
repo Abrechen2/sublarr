@@ -77,12 +77,14 @@ def process_subtitle():
     try:
         mods = [ModConfig(mod=ModName(m["mod"]), options=m.get("options", {})) for m in mods_raw]
     except (KeyError, ValueError) as e:
-        return jsonify({"error": f"Invalid mod config: {e}"}), 400
+        logger.warning("subtitle_processor: invalid mod config: %s", e)
+        return jsonify({"error": "Invalid mod config"}), 400
 
     try:
         result = apply_mods(abs_path, mods, dry_run=dry_run)
     except ValueError as e:
-        return jsonify({"error": str(e)}), 400
+        logger.warning("subtitle_processor: apply_mods rejected %s: %s", abs_path, e)
+        return jsonify({"error": "Invalid subtitle processing request"}), 400
     except Exception:
         logger.exception("process_subtitle failed for %s", abs_path)
         return jsonify({"error": "Internal server error"}), 500
@@ -139,7 +141,7 @@ def undo_process():
     try:
         result = restore_from_bak(abs_path)
     except RestoreError as e:
-        return jsonify({"error": str(e)}), e.http_status
+        return jsonify({"error": str(e)}), e.http_status  # user-facing-error
     return jsonify(result), 200
 
 

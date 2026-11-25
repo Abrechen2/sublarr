@@ -142,7 +142,11 @@ def _spawn_pipeline(
                 try:
                     socketio.emit(
                         "webhook_failed",
-                        {"file_path": file_path, "title": title, "error": str(exc)},
+                        {
+                            "file_path": file_path,
+                            "title": title,
+                            "error": "Webhook pipeline failed",
+                        },
                     )
                 except Exception:
                     logger.debug("webhook_failed emit failed", exc_info=True)
@@ -199,7 +203,7 @@ def _webhook_auto_pipeline(
             logger.info("Webhook pipeline: scan complete for series %d", series_id)
         except Exception as e:
             logger.warning("Webhook pipeline: scan failed: %s", e)
-            result_info["steps"].append({"scan": {"error": str(e)}})
+            result_info["steps"].append({"scan": {"error": "scan failed"}})
     elif s.webhook_auto_scan and movie_id:
         try:
             scanner = get_scanner()
@@ -208,7 +212,7 @@ def _webhook_auto_pipeline(
             logger.info("Webhook pipeline: scan complete for movie %d", movie_id)
         except Exception as e:
             logger.warning("Webhook pipeline: scan failed: %s", e)
-            result_info["steps"].append({"scan": {"error": str(e)}})
+            result_info["steps"].append({"scan": {"error": "scan failed"}})
 
     # Step 3: Auto-search + download via wanted system.
     # Runs process_wanted_item for EVERY wanted item tied to this file path —
@@ -240,10 +244,12 @@ def _webhook_auto_pipeline(
                         )
                     except Exception as inner:
                         logger.warning("Webhook pipeline: process_%s failed: %s", lang, inner)
-                        result_info["steps"].append({f"process_{lang}": {"error": str(inner)}})
+                        result_info["steps"].append(
+                            {f"process_{lang}": {"error": "process failed"}}
+                        )
         except Exception as e:
             logger.warning("Webhook pipeline: search/process failed: %s", e)
-            result_info["steps"].append({"search": {"error": str(e)}})
+            result_info["steps"].append({"search": {"error": "search failed"}})
 
     # Step 4: Fallback -- direct translate if auto_search is disabled but
     # webhook-level auto-translate is explicitly enabled.

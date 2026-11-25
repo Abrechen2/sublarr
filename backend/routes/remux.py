@@ -145,10 +145,10 @@ def _run_remux(job_id: str, video_path: str, stream_index: int, subtitle_track_i
         _update_job(job_id, "completed", result={"backup_path": bak_path, "video_path": video_path})
         logger.info("Remux job %s completed — backup: %s", job_id, bak_path)
     except RemuxError as exc:
-        _update_job(job_id, "failed", error=str(exc))
+        _update_job(job_id, "failed", error="Remux failed")
         logger.error("Remux job %s failed: %s", job_id, exc)
-    except Exception as exc:
-        _update_job(job_id, "failed", error=f"Unexpected error: {exc}")
+    except Exception:
+        _update_job(job_id, "failed", error="Unexpected error")
         logger.exception("Remux job %s unexpected error", job_id)
     finally:
         _arr_pause(False)

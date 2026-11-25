@@ -221,7 +221,7 @@ def batch_start():
                                 },
                             )
 
-                    except Exception as e:
+                    except Exception:
                         logger.exception("Batch: failed on %s", f["path"])
                         with batch_lock:
                             batch_state["processed"] += 1
@@ -229,7 +229,7 @@ def batch_start():
                             batch_state["errors"].append(
                                 {
                                     "file": f["path"],
-                                    "error": str(e),
+                                    "error": "Translation failed",
                                 }
                             )
             finally:

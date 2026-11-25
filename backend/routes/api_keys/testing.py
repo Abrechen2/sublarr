@@ -8,6 +8,8 @@ the actual callables.
 
 from __future__ import annotations
 
+from error_utils import public_error_text
+
 
 def _test_arr_client(module: str, getter: str, label: str) -> dict:
     """Test an *arr client (Sonarr/Radarr) connection."""
@@ -25,7 +27,7 @@ def _test_arr_client(module: str, getter: str, label: str) -> dict:
             else {"success": bool(result), "message": "OK" if result else "Failed"}
         )
     except Exception as e:
-        return {"success": False, "message": str(e)}
+        return {"success": False, "message": public_error_text(e)}
 
 
 def _test_sonarr() -> dict:
@@ -55,7 +57,7 @@ def _test_provider(service_name: str) -> dict:
             return provider.test_connection()
         return {"success": True, "message": f"Provider '{service_name}' is loaded and enabled"}
     except Exception as e:
-        return {"success": False, "message": str(e)}
+        return {"success": False, "message": public_error_text(e)}
 
 
 def _test_deepl() -> dict:
@@ -73,7 +75,7 @@ def _test_deepl() -> dict:
             return backend.test_connection()
         return {"success": True, "message": "DeepL backend is loaded"}
     except Exception as e:
-        return {"success": False, "message": str(e)}
+        return {"success": False, "message": public_error_text(e)}
 
 
 def _test_apprise() -> dict:
@@ -83,7 +85,7 @@ def _test_apprise() -> dict:
 
         return test_notification()
     except Exception as e:
-        return {"success": False, "message": str(e)}
+        return {"success": False, "message": public_error_text(e)}
 
 
 _TEST_DISPATCH: dict[str, callable] = {

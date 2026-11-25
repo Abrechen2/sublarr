@@ -117,10 +117,11 @@ def validate_content():
         )
 
     except pysubs2.exceptions.UnknownFPSError as exc:
+        logger.warning("Validation: unknown FPS: %s", exc)
         return jsonify(
             {
                 "valid": False,
-                "error": f"FPS error: {exc}",
+                "error": "FPS error: unknown frame rate",
                 "warnings": [],
             }
         )
@@ -129,7 +130,7 @@ def validate_content():
         return jsonify(
             {
                 "valid": False,
-                "error": str(exc),
+                "error": "Validation failed",
                 "warnings": [],
             }
         )

@@ -76,7 +76,8 @@ def compute_diff():
         orig_subs = pysubs2.SSAFile.from_string(original_content)
         mod_subs = pysubs2.SSAFile.from_string(modified_content)
     except Exception as exc:
-        return jsonify({"error": f"Failed to parse subtitle content: {exc}"}), 400
+        logger.warning("diff: could not parse subtitle content: %s", exc)
+        return jsonify({"error": "Failed to parse subtitle content"}), 400
 
     orig_events = [e for e in orig_subs.events if e.type == "Dialogue"]
     mod_events = [e for e in mod_subs.events if e.type == "Dialogue"]
@@ -206,7 +207,8 @@ def apply_diff():
         orig_subs = pysubs2.SSAFile.from_string(original_content)
         mod_subs = pysubs2.SSAFile.from_string(modified_content)
     except Exception as exc:
-        return jsonify({"error": f"Failed to parse subtitle content: {exc}"}), 400
+        logger.warning("diff: could not parse subtitle content: %s", exc)
+        return jsonify({"error": "Failed to parse subtitle content"}), 400
 
     orig_events = [e for e in orig_subs.events if e.type == "Dialogue"]
     mod_events = [e for e in mod_subs.events if e.type == "Dialogue"]

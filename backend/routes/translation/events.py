@@ -74,7 +74,7 @@ def cost_by_backend():
     try:
         start = _window_start(window)
     except ValueError as exc:
-        return jsonify({"error": str(exc), "error_type": "ValueError"}), 400
+        return jsonify({"error": str(exc), "error_type": "ValueError"}), 400  # user-facing-error
 
     rows = db.session.execute(
         sa.select(

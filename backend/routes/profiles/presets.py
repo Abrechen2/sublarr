@@ -116,7 +116,7 @@ def create_prompt_preset():
     try:
         preset = create_preset(request.get_json() or {})
     except ProfileValidationError as exc:
-        return jsonify({"error": str(exc)}), 400
+        return jsonify({"error": str(exc)}), 400  # user-facing-error
 
     invalidate_response_cache()
     return jsonify(preset), 201
@@ -167,9 +167,9 @@ def update_prompt_preset_endpoint(preset_id):
     try:
         preset = update_preset(preset_id, request.get_json() or {})
     except ProfileNotFoundError as exc:
-        return jsonify({"error": str(exc)}), 404
+        return jsonify({"error": str(exc)}), 404  # user-facing-error
     except ProfileValidationError as exc:
-        return jsonify({"error": str(exc)}), 400
+        return jsonify({"error": str(exc)}), 400  # user-facing-error
 
     invalidate_response_cache()
     return jsonify(preset)
@@ -210,7 +210,7 @@ def delete_prompt_preset_endpoint(preset_id):
     try:
         result = delete_preset(preset_id)
     except ProfileNotFoundError as exc:
-        return jsonify({"error": str(exc)}), 404
+        return jsonify({"error": str(exc)}), 404  # user-facing-error
 
     invalidate_response_cache()
     return jsonify(result)

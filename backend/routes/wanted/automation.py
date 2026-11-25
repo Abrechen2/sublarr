@@ -91,7 +91,7 @@ def automation_run_now():
         # Said "queued" with a success toast although nothing ran and nothing
         # was queued (#61 A28).
         logger.warning("automation.run_now: drain raised: %s", exc)
-        return jsonify({"status": "error", "error": f"Drain failed: {exc}"}), 500
+        return jsonify({"status": "error", "error": "Drain failed"}), 500
 
     return (
         jsonify({"status": "queued", "processed": processed}),

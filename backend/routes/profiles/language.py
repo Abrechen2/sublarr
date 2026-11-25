@@ -125,9 +125,9 @@ def create_language_profile_endpoint():
     try:
         profile = create_profile(request.get_json() or {})
     except ProfileValidationError as exc:
-        return jsonify({"error": str(exc)}), 400
+        return jsonify({"error": str(exc)}), 400  # user-facing-error
     except ProfileConflictError as exc:
-        return jsonify({"error": str(exc)}), 409
+        return jsonify({"error": str(exc)}), 409  # user-facing-error
     except Exception as exc:
         logger.exception("Failed to create language profile: %s", exc)
         return jsonify({"error": "Internal server error"}), 500
@@ -208,11 +208,11 @@ def update_language_profile_endpoint(profile_id):
     try:
         updated = update_profile(profile_id, request.get_json() or {})
     except ProfileNotFoundError as exc:
-        return jsonify({"error": str(exc)}), 404
+        return jsonify({"error": str(exc)}), 404  # user-facing-error
     except ProfileValidationError as exc:
-        return jsonify({"error": str(exc)}), 400
+        return jsonify({"error": str(exc)}), 400  # user-facing-error
     except ProfileConflictError as exc:
-        return jsonify({"error": str(exc)}), 409
+        return jsonify({"error": str(exc)}), 409  # user-facing-error
     except Exception as exc:
         logger.exception("Failed to update language profile: %s", exc)
         return jsonify({"error": "Internal server error"}), 500
@@ -317,9 +317,9 @@ def assign_profile():
     try:
         result = assign_profile_to_item(request.get_json() or {})
     except ProfileValidationError as exc:
-        return jsonify({"error": str(exc)}), 400
+        return jsonify({"error": str(exc)}), 400  # user-facing-error
     except ProfileNotFoundError as exc:
-        return jsonify({"error": str(exc)}), 404
+        return jsonify({"error": str(exc)}), 404  # user-facing-error
 
     return jsonify(result)
 
@@ -402,7 +402,7 @@ def assign_profile_bulk():
             assign_profile_to_item({"type": item_type, "arr_id": arr_id, "profile_id": profile_id})
             assigned += 1
         except (ProfileValidationError, ProfileNotFoundError) as exc:
-            failed.append({"arr_id": arr_id, "error": str(exc)})
+            failed.append({"arr_id": arr_id, "error": str(exc)})  # user-facing-error
     return jsonify({"assigned": assigned, "failed": failed})
 
 
@@ -430,7 +430,7 @@ def set_profile_as_default_for_all_endpoint(profile_id):
     try:
         result = set_default_for_all(profile_id)
     except ProfileNotFoundError as exc:
-        return jsonify({"error": str(exc)}), 404
+        return jsonify({"error": str(exc)}), 404  # user-facing-error
 
     invalidate_response_cache()
     return jsonify(result)

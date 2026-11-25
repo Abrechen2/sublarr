@@ -5,6 +5,7 @@ import os
 
 from flask import jsonify, request
 
+from error_utils import internal_error_response
 from routes.blacklist import bp
 
 logger = logging.getLogger(__name__)
@@ -204,7 +205,8 @@ def rollback_history_entry(download_id):
     try:
         active_path = _resolve_sidecar_path(entry)
     except ValueError as e:
-        return jsonify({"error": str(e)}), 403
+        logger.warning("restore: sidecar path rejected for download %s: %s", download_id, e)
+        return jsonify({"error": "Subtitle path is outside the media directory"}), 403
 
     prev = None
     if entry.get("upgraded_from_id"):
@@ -224,7 +226,8 @@ def rollback_history_entry(download_id):
         try:
             prev_active = _resolve_sidecar_path(prev)
         except ValueError as e:
-            return jsonify({"error": str(e)}), 403
+            logger.warning("restore: previous sidecar path rejected for %s: %s", download_id, e)
+            return jsonify({"error": "Subtitle path is outside the media directory"}), 403
 
         bak_path = find_existing_bak(prev_active)
         if bak_path is None:
@@ -236,11 +239,11 @@ def rollback_history_entry(download_id):
             try:
                 os.remove(active_path)
             except OSError as e:
-                return jsonify({"error": f"Could not remove current subtitle: {e}"}), 409
+                return internal_error_response("Could not remove current subtitle", e, 409)
         try:
             os.replace(bak_path, prev_active)
         except OSError as e:
-            return jsonify({"error": f"Could not restore backup: {e}"}), 409
+            return internal_error_response("Could not restore backup", e, 409)
         from services.subtitle_restore import mark_restored_safely
 
         mark_restored_safely(prev_active)
@@ -249,7 +252,7 @@ def rollback_history_entry(download_id):
         try:
             result = restore_from_bak(active_path)
         except RestoreError as e:
-            return jsonify({"error": str(e)}), e.http_status
+            return jsonify({"error": str(e)}), e.http_status  # user-facing-error
 
     log_activity(
         EVENT_DOWNLOAD,

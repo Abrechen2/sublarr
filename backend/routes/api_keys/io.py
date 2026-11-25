@@ -176,7 +176,7 @@ def _import_zip(uploaded) -> tuple:
         try:
             config_data = json.loads(safe_read_zip_member(zf, "config.json"))
         except ValueError as exc:
-            return jsonify({"error": str(exc)}), 400
+            return jsonify({"error": str(exc)}), 400  # user-facing-error
         if not isinstance(config_data, dict):
             return jsonify({"error": "config.json must be a JSON object"}), 400
         valid_keys = (
@@ -200,7 +200,7 @@ def _import_zip(uploaded) -> tuple:
             try:
                 profiles_data = json.loads(safe_read_zip_member(zf, "profiles.json"))
             except ValueError as exc:
-                return jsonify({"error": str(exc)}), 400
+                return jsonify({"error": str(exc)}), 400  # user-facing-error
             if not isinstance(profiles_data, list):
                 logger.warning("profiles.json must be a JSON list — skipping")
                 profiles_data = []
@@ -247,7 +247,7 @@ def _import_zip(uploaded) -> tuple:
             try:
                 glossary_data = json.loads(safe_read_zip_member(zf, "glossary.json"))
             except ValueError as exc:
-                return jsonify({"error": str(exc)}), 400
+                return jsonify({"error": str(exc)}), 400  # user-facing-error
             if not isinstance(glossary_data, list):
                 logger.warning("glossary.json must be a JSON list — skipping")
                 glossary_data = []
@@ -412,7 +412,7 @@ def import_bazarr():
                         try:
                             raw = safe_read_zip_member(zf, name)
                         except ValueError as exc:
-                            return jsonify({"error": str(exc)}), 400
+                            return jsonify({"error": str(exc)}), 400  # user-facing-error
                         file_content = raw.decode("utf-8", errors="replace")
                         config_data = _merge_bazarr_config(
                             config_data, parse_bazarr_config(file_content, basename), basename
@@ -421,7 +421,7 @@ def import_bazarr():
                         try:
                             db_bytes = safe_read_zip_member(zf, name)
                         except ValueError as exc:
-                            return jsonify({"error": str(exc)}), 400
+                            return jsonify({"error": str(exc)}), 400  # user-facing-error
                         db_data = _take_bazarr_db(db_data, db_bytes, basename, migrate_bazarr_db)
             except zipfile.BadZipFile:
                 return jsonify({"error": "Invalid ZIP file"}), 400

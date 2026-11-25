@@ -37,9 +37,9 @@ def _dry_run_one(app, item_id: int) -> dict:
 
         try:
             result = process_wanted_item(item_id, dry_run=True)
-        except Exception as exc:
+        except Exception:
             logger.exception("Dry run failed for wanted %d", item_id)
-            result = {"wanted_id": item_id, "status": "error", "error": str(exc)}
+            result = {"wanted_id": item_id, "status": "error", "error": "Dry run failed"}
         finally:
             # The pipeline bumps status to "searching" before it can know it
             # is a preview. Put back whatever was there — unless a pre-flight
@@ -118,9 +118,9 @@ def wanted_dry_run():
             item_id = futures[future]
             try:
                 results.append(future.result())
-            except Exception as exc:
+            except Exception:
                 logger.exception("Dry-run worker crashed for wanted %d", item_id)
-                results.append({"wanted_id": item_id, "status": "error", "error": str(exc)})
+                results.append({"wanted_id": item_id, "status": "error", "error": "Dry run failed"})
 
     # Preserve the request order — as_completed returns in finish order.
     order = {item_id: idx for idx, item_id in enumerate(item_ids)}

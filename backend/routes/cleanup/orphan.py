@@ -219,7 +219,8 @@ def delete_orphaned():
                 file_size,
             )
         except Exception as e:
-            errors.append(f"Failed to delete {fp}: {e}")
+            logger.warning("Failed to delete orphaned subtitle %s: %s", fp, e)
+            errors.append(f"Failed to delete {fp}")
 
     # Log to cleanup history
     try:

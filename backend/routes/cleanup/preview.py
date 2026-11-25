@@ -70,7 +70,7 @@ def preview_cleanup():
         return jsonify(result)
     except ValueError as e:
         code = 404 if "not found" in str(e) else 400
-        return jsonify({"error": str(e)}), code
+        return jsonify({"error": str(e)}), code  # user-facing-error
     except Exception as e:
         logger.exception("Preview failed: %s", e)
         return jsonify({"error": "Internal server error"}), 500
