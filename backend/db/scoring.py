@@ -15,6 +15,7 @@ __all__ = [
     "_DEFAULT_MOVIE_WEIGHTS",
     "get_scoring_weights",
     "set_scoring_weights",
+    "apply_scoring_preset",
     "get_all_scoring_weights",
     "reset_scoring_weights",
     "get_effective_weights",
@@ -47,6 +48,11 @@ def get_scoring_weights(score_type: str) -> dict:
 def set_scoring_weights(score_type: str, weights_dict: dict) -> None:
     """Set scoring weight overrides for a given type."""
     return _get_repo().set_scoring_weights(score_type, weights_dict)
+
+
+def apply_scoring_preset(weights: dict, modifiers: dict) -> None:
+    """Write a preset's weights and provider modifiers atomically."""
+    return _get_repo().apply_preset(weights, modifiers)
 
 
 def get_all_scoring_weights() -> dict:

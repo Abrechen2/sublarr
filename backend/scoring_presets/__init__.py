@@ -22,6 +22,17 @@ logger = logging.getLogger(__name__)
 
 _PRESETS_DIR = Path(__file__).parent
 
+# Value bounds for an imported preset. Weights share the range of the
+# user-defined scoring rules (db/repositories/custom_rules.py); modifiers the
+# -100..100 that PUT /scoring/modifiers enforces. Anything outside is refused
+# before a single value is written (an int beyond SQLite's 64 bits used to
+# fail halfway through the import, Forgejo #56).
+MIN_WEIGHT = -999
+MAX_WEIGHT = 999
+MIN_PROVIDER_MODIFIER = -100
+MAX_PROVIDER_MODIFIER = 100
+MAX_PROVIDER_NAME_LEN = 64
+
 _VALID_WEIGHT_KEYS = {
     "hash",
     "series",
@@ -88,12 +99,19 @@ def validate_preset(data: dict) -> bool:
         for key, val in w.items():
             if key not in _VALID_WEIGHT_KEYS:
                 return False
-            if not isinstance(val, int):
+            if not _int_in_range(val, MIN_WEIGHT, MAX_WEIGHT):
                 return False
     modifiers = data.get("provider_modifiers", {})
     if not isinstance(modifiers, dict):
         return False
     for name, val in modifiers.items():
-        if not isinstance(name, str) or not isinstance(val, int):
+        if not isinstance(name, str) or not name or len(name) > MAX_PROVIDER_NAME_LEN:
+            return False
+        if not _int_in_range(val, MIN_PROVIDER_MODIFIER, MAX_PROVIDER_MODIFIER):
             return False
     return True
+
+
+def _int_in_range(val, low: int, high: int) -> bool:
+    # bool is an int subclass; ``true`` in a preset is a mistake, not 1.
+    return isinstance(val, int) and not isinstance(val, bool) and low <= val <= high

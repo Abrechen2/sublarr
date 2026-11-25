@@ -12,8 +12,6 @@ import re
 import shutil
 import zipfile
 
-import requests
-
 from security_utils import (
     get_with_checked_redirects,
     is_safe_path,
@@ -82,12 +80,19 @@ class PluginMarketplace:
             raise RuntimeError(f"Registry URL blocked for security reasons: {reason}")
 
         try:
-            response = requests.get(self.registry_url, timeout=10)
+            # Redirects are followed hop by hop, each target checked like the
+            # registry URL itself (code check 2026-11-05, N-2).
+            response = get_with_checked_redirects(self.registry_url, timeout=10)
+        except ValueError as e:
+            raise RuntimeError(f"Registry URL blocked for security reasons: {e}") from e
+        except Exception as e:
+            raise RuntimeError(f"Failed to fetch plugin registry: {e}") from e
+        try:
             response.raise_for_status()
             self.registry_cache = response.json()
             return self.registry_cache
         except Exception as e:
-            raise RuntimeError(f"Failed to fetch plugin registry: {e}")
+            raise RuntimeError(f"Failed to fetch plugin registry: {e}") from e
 
     def list_plugins(self, category: str | None = None) -> list[dict]:
         """List available plugins from registry.

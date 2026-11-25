@@ -179,3 +179,66 @@ class TestPresetEndpoints:
         assert weights_resp.status_code == 200
         weights = weights_resp.get_json()
         assert weights["episode"]["hash"] == 500
+
+
+class TestPresetImportBoundsAndAtomicity:
+    """An invalid or failing import changes nothing (Forgejo #56)."""
+
+    def _series_weight(self, client):
+        # Read the table itself: GET /scoring/weights is response-cached, and a
+        # failed import does not invalidate that cache.
+        from db.scoring import get_all_scoring_weights
+
+        with client.application.app_context():
+            return get_all_scoring_weights()["episode"]["series"]
+
+    @pytest.mark.parametrize(
+        "preset",
+        [
+            {"weights": {"episode": {"series": 42}, "movie": {"title": 10**24}}},
+            {"weights": {"episode": {"series": 42}}, "provider_modifiers": {"x": 10**24}},
+            {"weights": {"episode": {"series": 42}}, "provider_modifiers": {"x": 101}},
+            {"weights": {"episode": {"series": True}}},
+        ],
+    )
+    def test_out_of_range_values_are_a_400_and_change_nothing(self, client, preset):
+        before = self._series_weight(client)
+        resp = client.post("/api/v1/scoring/presets/import", json={"name": "bad", **preset})
+        assert resp.status_code == 400
+        assert self._series_weight(client) == before
+
+    def test_a_failure_while_saving_rolls_back_every_value(self, client, monkeypatch):
+        from db.repositories.scoring import ScoringRepository
+
+        def boom(self, provider_name, modifier):
+            raise RuntimeError("disk full")
+
+        monkeypatch.setattr(ScoringRepository, "set_provider_modifier", boom)
+        before = self._series_weight(client)
+        resp = client.post(
+            "/api/v1/scoring/presets/import",
+            json={
+                "name": "half",
+                "weights": {"episode": {"series": 42}},
+                "provider_modifiers": {"opensubtitles": 20},
+            },
+        )
+        assert resp.status_code == 500
+        assert self._series_weight(client) == before
+
+    def test_bounds_accept_the_edges(self):
+        from scoring_presets import (
+            MAX_PROVIDER_MODIFIER,
+            MAX_WEIGHT,
+            MIN_PROVIDER_MODIFIER,
+            MIN_WEIGHT,
+            validate_preset,
+        )
+
+        assert validate_preset(
+            {
+                "name": "edges",
+                "weights": {"episode": {"hash": MAX_WEIGHT, "series": MIN_WEIGHT}},
+                "provider_modifiers": {"a": MAX_PROVIDER_MODIFIER, "b": MIN_PROVIDER_MODIFIER},
+            }
+        )
