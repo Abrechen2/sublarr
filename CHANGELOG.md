@@ -63,11 +63,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tags and inserted raw line breaks; short-line merge merged overlapping
   events across layers and styles. Both now keep tags, use `\N` and merge
   only consecutive events of the same style.
-- **Titrari offered like/comment links as subtitles**; only real subtitle
-  links are results now.
+- **Titrari found nothing useful** — The search sent a field the site ignores,
+  so every query returned the site's default list, and like/comment links
+  showed up as subtitles. It now uses the site's search form (title only;
+  series come as season packs), offers one result per download, sends the
+  referer the download needs, takes the requested episode out of a season
+  pack and refuses an HTML page instead of saving it as a subtitle.
 - **Catalog archives with the same file name in several folders** picked the
   wrong file; the pinned member is matched on its full path.
-- Profile source languages must be language codes.
+- Profile source languages must be language codes; "EN" or " de " from an
+  older profile is normalised instead of blocking the save.
+- **Live updates after signing in** — With UI auth on, the live connection is
+  refused until you sign in, and it did not come back afterwards until the
+  page was reloaded. It now reconnects at once after login and retries with a
+  backoff otherwise.
+- **Penalty-rule weights** accepted any number (and `1e400` gave a 500); they
+  now use the same -999..999 range as the scoring weights. Oversized numbers
+  in other request fields give a 400 instead of a 500.
+- Garbled minus signs in four English scoring settings texts.
 
 ## [1.21.2] - 2026-11-20
 
