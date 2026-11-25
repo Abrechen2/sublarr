@@ -36,8 +36,34 @@ from wanted_search.post_processor import (
 logger = logging.getLogger(__name__)
 
 
-def _source_equals_target(item_lang: str | None, settings) -> bool:
-    """True when the item's target language IS the configured source language.
+def _item_source_language(item: dict, settings) -> str:
+    """The source language this item translates from (#80).
+
+    The governing profile's ``source_language``, else the global one — the
+    same direction Step 5 and the extraction hand-off use. A profile that
+    cannot be read falls back to the global source with a warning.
+    """
+    try:
+        from services.mt_provisional import _resolve_profile_for_item
+
+        profile = _resolve_profile_for_item(item) or {}
+    except Exception as exc:  # noqa: BLE001 — the global source is a safe default
+        logger.warning(
+            "Wanted %s: cannot read the profile source language (%s) — using the global one",
+            item.get("id"),
+            exc,
+        )
+        profile = {}
+    return profile.get("source_language") or getattr(settings, "source_language", "") or ""
+
+
+def _ctx_source_language(ctx: dict) -> str:
+    """The item's source language from ctx, else the global one."""
+    return ctx.get("source_language") or getattr(ctx["settings"], "source_language", "") or ""
+
+
+def _source_equals_target(item_lang: str | None, source_language: str | None) -> bool:
+    """True when the item's target language IS its source language.
 
     The source-download-and-translate steps (2 and 4) exist to bridge a
     language gap; when there is no gap they would download a subtitle in the
@@ -46,7 +72,7 @@ def _source_equals_target(item_lang: str | None, settings) -> bool:
     """
     from config_language_data import normalize_language_code
 
-    source = normalize_language_code(getattr(settings, "source_language", "") or "")
+    source = normalize_language_code(source_language or "")
     target = normalize_language_code(item_lang or "")
     return bool(source) and source == target
 
@@ -574,7 +600,7 @@ def _defer_source_translation(ctx: dict, source_path: str, fmt: str) -> dict | N
             file_path=file_path,
             target_language=target_lang,
             task_type=SubtitleAutomationQueueEntry.TASK_SIDECAR_TRANSLATE,
-            source_language=getattr(settings, "source_language", None),
+            source_language=_ctx_source_language(ctx) or None,
         )
     except Exception as exc:  # noqa: BLE001 — a queue fault must not lose the item
         logger.warning(
@@ -656,7 +682,8 @@ def _try_source_ass_translation(ctx: dict) -> dict | None:
     _pf = ctx["_pf"]
     file_path = ctx["file_path"]
 
-    if _source_equals_target(item_lang, settings):
+    source_lang = _ctx_source_language(ctx)
+    if _source_equals_target(item_lang, source_lang):
         # Translating en→en is not a fallback, it is an LLM round-trip that
         # mangles a perfectly good subtitle (prod 2026-08-30: 1326 same-language
         # events, 1221 poisoned translation-memory rows). Step 1 already
@@ -686,7 +713,7 @@ def _try_source_ass_translation(ctx: dict) -> dict | None:
         from translator import _translate_external_ass, get_output_path_for_lang  # noqa: F401
 
         base = os.path.splitext(file_path)[0]
-        tmp_source_path = f"{base}.{settings.source_language}.ass"
+        tmp_source_path = f"{base}.{source_lang}.ass"
         try:
             # Use the returned path — save_subtitle may adjust the extension
             # (e.g. if the downloaded file turns out to be SRT, not ASS)
@@ -700,7 +727,7 @@ def _try_source_ass_translation(ctx: dict) -> dict | None:
             record_subtitle_download(
                 result.provider_name,
                 result.subtitle_id,
-                settings.source_language,
+                source_lang,
                 result.format.value if result.format.value != "unknown" else "ass",
                 file_path,
                 result.score,
@@ -740,7 +767,7 @@ def _try_source_ass_translation(ctx: dict) -> dict | None:
                 target_language=item_lang,
                 target_language_name=language_name(item_lang),
                 arr_context=arr_context if arr_context else None,
-                source_language=settings.source_language,
+                source_language=source_lang,
             )
         except Exception as trans_error:
             logger.error(
@@ -954,7 +981,8 @@ def _try_source_srt_translation(ctx: dict) -> dict | None:
     _pf = ctx["_pf"]
     file_path = ctx["file_path"]
 
-    if _source_equals_target(item_lang, settings):
+    source_lang = _ctx_source_language(ctx)
+    if _source_equals_target(item_lang, source_lang):
         # Same rationale as Step 2 — see _try_source_ass_translation.
         logger.info(
             "Wanted %d: skipping source-SRT translation — target language (%s) "
@@ -967,7 +995,7 @@ def _try_source_srt_translation(ctx: dict) -> dict | None:
     source_query = ctx.get("source_query")
     if source_query is None:
         source_query = build_query_from_wanted(item)
-        source_query.languages = [settings.source_language]
+        source_query.languages = [source_lang]
         ctx["source_query"] = source_query
 
     decision_log.set_step("source_srt_translation")
@@ -984,7 +1012,7 @@ def _try_source_srt_translation(ctx: dict) -> dict | None:
         from translator import get_output_path_for_lang, translate_srt_from_file  # noqa: F401
 
         base = os.path.splitext(file_path)[0]
-        tmp_source_path = f"{base}.{settings.source_language}.srt"
+        tmp_source_path = f"{base}.{source_lang}.srt"
         try:
             actual_source_path = manager.save_subtitle(
                 result,
@@ -996,7 +1024,7 @@ def _try_source_srt_translation(ctx: dict) -> dict | None:
             record_subtitle_download(
                 result.provider_name,
                 result.subtitle_id,
-                settings.source_language,
+                source_lang,
                 result.format.value if result.format.value != "unknown" else "srt",
                 file_path,
                 result.score,
@@ -1036,7 +1064,7 @@ def _try_source_srt_translation(ctx: dict) -> dict | None:
                 source="provider_source_srt",
                 target_language=item_lang,
                 arr_context=arr_context if arr_context else None,
-                source_language=settings.source_language,
+                source_language=source_lang,
             )
         except Exception as trans_error:
             logger.error(
@@ -1538,8 +1566,9 @@ def _search_flipped_item(
     # Source-language copy for Steps 2/4 — taken before profile-specific
     # hi/forced preferences are applied, matching the previous fresh-build
     # behavior of _try_source_ass_translation.
+    source_lang = _item_source_language(item, settings)
     source_query = copy.deepcopy(query)
-    source_query.languages = [settings.source_language]
+    source_query.languages = [source_lang]
 
     query.hi_preference = _pf.get("hi_preference", "include")
     # forced_scoring no longer applies: this query only sees full subtitles
@@ -1563,6 +1592,7 @@ def _search_flipped_item(
         ),
         "query": query,
         "source_query": source_query,
+        "source_language": source_lang,
         "ass_had_results": False,
         "dry_run": dry_run,
         "allow_translate_fallback": allow_translate_fallback,
@@ -1825,14 +1855,8 @@ def _queue_embedded_source(ctx: dict) -> None:
         # translate_file accepts only the preferred source then; queueing any
         # other track would send the drain on to providers and Whisper.
         # Same direction as Step 5: the profile's source, else the global one.
-        try:
-            from services.mt_provisional import _resolve_profile_for_item
-
-            profile = _resolve_profile_for_item(ctx["item"]) or {}
-        except Exception:  # noqa: BLE001 — same fallback as Step 5
-            profile = {}
         strict_source = normalize_language_code(
-            profile.get("source_language") or settings.source_language or ""
+            ctx.get("source_language") or _item_source_language(ctx["item"], settings)
         )
     sources = [
         lang

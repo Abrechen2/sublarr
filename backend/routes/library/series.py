@@ -28,6 +28,16 @@ from services.standalone_library import (
 )
 
 
+def _profile_source(profile: dict | None, settings) -> tuple[str, str]:
+    """The series' translation source: its profile's, else the global one (#80)."""
+    code = (profile or {}).get("source_language") or ""
+    if not code:
+        return settings.source_language, settings.source_language_name
+    from config_language_data import language_name
+
+    return code, (profile or {}).get("source_language_name") or language_name(code)
+
+
 def _get_standalone_series_detail(series_id: int, settings) -> dict | None:
     """Build a Sonarr-compatible series detail dict from standalone DB data."""
     import re
@@ -59,6 +69,7 @@ def _get_standalone_series_detail(series_id: int, settings) -> dict | None:
     )
     profile_name = profile.get("name", "Default") if profile else "Default"
     profile_id = profile.get("id") if profile else None
+    source_language, source_language_name = _profile_source(profile, settings)
 
     db = get_db()
     rows = db.execute(
@@ -258,8 +269,8 @@ def _get_standalone_series_detail(series_id: int, settings) -> dict | None:
         "profile_id": profile_id,
         "target_languages": target_languages,
         "target_language_names": target_language_names,
-        "source_language": settings.source_language,
-        "source_language_name": settings.source_language_name,
+        "source_language": source_language,
+        "source_language_name": source_language_name,
         "absolute_order": absolute_order,
         "cleanup_foreign_tracks_override": cleanup_override,
         "cleanup_foreign_tracks_effective": should_cleanup_foreign_tracks(
@@ -366,6 +377,7 @@ def get_series_detail(series_id):
     )
     profile_name = profile.get("name", "Default") if profile else "Default"
     profile_id = profile.get("id") if profile else None
+    source_language, source_language_name = _profile_source(profile, settings)
 
     # Get all episodes + episode files in parallel
     # /episode?seriesId=X does NOT include episodeFile details in Sonarr v3,
@@ -597,8 +609,8 @@ def get_series_detail(series_id):
             "profile_id": profile_id,
             "target_languages": target_languages,
             "target_language_names": target_language_names,
-            "source_language": settings.source_language,
-            "source_language_name": settings.source_language_name,
+            "source_language": source_language,
+            "source_language_name": source_language_name,
             "absolute_order": absolute_order,
             "cleanup_foreign_tracks_override": cleanup_override,
             "cleanup_foreign_tracks_effective": cleanup_effective,

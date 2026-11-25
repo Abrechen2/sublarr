@@ -221,8 +221,9 @@ def _process_forced_wanted_item(item, item_id, item_lang, manager, profile_filte
             )
 
     # Also try source language forced subtitles (download-only, no translation)
-    settings = get_settings()
-    source_lang = settings.source_language
+    from wanted_search.process import _item_source_language
+
+    source_lang = _item_source_language(item, get_settings())  # #80: the profile's direction
     source_query = _forced_query(item, source_lang, pf)
 
     for fmt in formats:

@@ -105,7 +105,9 @@ def search_wanted_item(item_id: int) -> dict:
     settings = get_settings()
     manager = get_provider_manager()
     item_lang = item.get("target_language") or settings.target_language
-    source_lang = settings.source_language
+    from wanted_search.process import _item_source_language
+
+    source_lang = _item_source_language(item, settings)  # #80: the profile's direction
 
     # Build the target query once; derive the source query as a copy so the
     # enrichment pipeline (Sonarr HTTP, guessit, AniDB/AniList, file hash)
