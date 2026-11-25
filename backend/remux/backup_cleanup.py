@@ -13,6 +13,10 @@ import time
 
 logger = logging.getLogger(__name__)
 
+#: ``<video>.<epoch>.bak``, or ``<video>.<epoch>.<uuid8>.bak`` when a second
+#: backup lands in the same second (``_make_backup`` collision suffix, #46).
+_STAMP_SUFFIX_RE = re.compile(r"\.(\d{7,})(?:\.[0-9a-f]{8})?\.bak$")
+
 
 def _derive_video_path(bak_path: str) -> str | None:
     """Derive the original video path from a .bak file path.
@@ -26,7 +30,7 @@ def _derive_video_path(bak_path: str) -> str | None:
     """
     filename = os.path.basename(bak_path)
     # Strip .{timestamp}.bak suffix (timestamp = large integer)
-    stem = re.sub(r"\.\d{7,}\.bak$", "", filename)
+    stem = _STAMP_SUFFIX_RE.sub("", filename)
     if not stem or stem == filename:
         # Fallback: strip any .bak suffix
         stem = re.sub(r"\.bak$", "", filename)
@@ -57,7 +61,7 @@ def backup_created_at(bak_path: str) -> float:
 
     Raises OSError if the file cannot be stat'ed and carries no usable stamp.
     """
-    match = re.search(r"\.(\d{7,})\.bak$", os.path.basename(bak_path))
+    match = _STAMP_SUFFIX_RE.search(os.path.basename(bak_path))
     if match:
         stamp = float(match.group(1))
         # Allow a day of clock skew; anything beyond that is not a real stamp.
