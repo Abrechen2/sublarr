@@ -52,14 +52,18 @@ def measure_commit_latency_ms(engine, samples: int = _PROBE_SAMPLES) -> float | 
     try:
         timings: list[float] = []
         with engine.connect() as conn:
-            conn.execute(text(f"CREATE TABLE IF NOT EXISTS {_PROBE_TABLE} (v INTEGER)"))
+            conn.execute(
+                text(f"CREATE TABLE IF NOT EXISTS {_PROBE_TABLE} (v INTEGER)")
+            )  # sql-identifiers-only
             conn.commit()
             for i in range(samples):
                 start = time.perf_counter()
-                conn.execute(text(f"INSERT INTO {_PROBE_TABLE} (v) VALUES (:v)"), {"v": i})
+                conn.execute(
+                    text(f"INSERT INTO {_PROBE_TABLE} (v) VALUES (:v)"), {"v": i}
+                )  # sql-identifiers-only
                 conn.commit()
                 timings.append((time.perf_counter() - start) * 1000.0)
-            conn.execute(text(f"DROP TABLE IF EXISTS {_PROBE_TABLE}"))
+            conn.execute(text(f"DROP TABLE IF EXISTS {_PROBE_TABLE}"))  # sql-identifiers-only
             conn.commit()
         if not timings:
             return None

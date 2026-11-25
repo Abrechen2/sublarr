@@ -128,7 +128,7 @@ class StatisticsRepository(BaseRepository):
             else "GROUP_CONCAT(DISTINCT sd.format)"
         )
         rows = self.session.execute(
-            text(f"""
+            text(f"""  # sql-identifiers-only
                 SELECT wi.title,
                        AVG(COALESCE(sd.score, 0)) as avg_score,
                        COUNT(*) as download_count,

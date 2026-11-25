@@ -34,7 +34,7 @@ def _get_table_info(conn: sqlite3.Connection, table_name: str) -> list:
     """
     try:
         _validate_table_name(table_name)
-        cursor = conn.execute(f"PRAGMA table_info({table_name})")
+        cursor = conn.execute(f"PRAGMA table_info({table_name})")  # sql-identifiers-only
         return [row[1] for row in cursor]
     except ValueError:
         return []
@@ -106,7 +106,7 @@ def _read_settings_table(conn: sqlite3.Connection, table_name: str, warnings: li
     """Read a Bazarr settings table (Sonarr or Radarr)."""
     try:
         _validate_table_name(table_name)
-        cursor = conn.execute(f"SELECT * FROM {table_name} LIMIT 1")
+        cursor = conn.execute(f"SELECT * FROM {table_name} LIMIT 1")  # sql-identifiers-only
         row = cursor.fetchone()
         if row:
             return dict(row)
@@ -337,7 +337,9 @@ def generate_mapping_report(db_path: str) -> dict:
             detail["columns"] = columns
 
             try:
-                count_cursor = conn.execute(f"SELECT COUNT(*) FROM [{table_name}]")
+                count_cursor = conn.execute(
+                    f"SELECT COUNT(*) FROM [{table_name}]"
+                )  # sql-identifiers-only
                 detail["row_count"] = count_cursor.fetchone()[0]
             except sqlite3.OperationalError:
                 pass
@@ -345,7 +347,9 @@ def generate_mapping_report(db_path: str) -> dict:
             # Get a sample row with secrets masked
             if detail["row_count"] > 0 and columns:
                 try:
-                    sample_cursor = conn.execute(f"SELECT * FROM [{table_name}] LIMIT 1")
+                    sample_cursor = conn.execute(
+                        f"SELECT * FROM [{table_name}] LIMIT 1"
+                    )  # sql-identifiers-only
                     sample_row = sample_cursor.fetchone()
                     if sample_row:
                         row_dict = dict(sample_row)

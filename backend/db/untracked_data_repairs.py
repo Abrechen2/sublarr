@@ -99,7 +99,7 @@ REPAIRS: list[tuple[str, Callable]] = [
 def _ensure_marker_table(engine) -> None:
     with engine.begin() as conn:
         conn.execute(
-            sa.text(
+            sa.text(  # sql-identifiers-only
                 f"CREATE TABLE IF NOT EXISTS {MARKER_TABLE} "
                 "(revision VARCHAR(64) PRIMARY KEY, applied_at VARCHAR(40) NOT NULL, "
                 "affected INTEGER NOT NULL)"
@@ -111,7 +111,9 @@ def apply_untracked_data_repairs(engine) -> dict[str, int]:
     """Apply every repair not yet recorded; return ``{revision: rows affected}``."""
     _ensure_marker_table(engine)
     with engine.connect() as conn:
-        done = {row[0] for row in conn.execute(sa.text(f"SELECT revision FROM {MARKER_TABLE}"))}
+        done = {
+            row[0] for row in conn.execute(sa.text(f"SELECT revision FROM {MARKER_TABLE}"))
+        }  # sql-identifiers-only
 
     applied: dict[str, int] = {}
     for revision, repair in REPAIRS:
@@ -121,7 +123,7 @@ def apply_untracked_data_repairs(engine) -> dict[str, int]:
             with engine.begin() as conn:
                 affected = int(repair(conn) or 0)
                 conn.execute(
-                    sa.text(
+                    sa.text(  # sql-identifiers-only
                         f"INSERT INTO {MARKER_TABLE} (revision, applied_at, affected) "
                         "VALUES (:revision, :applied_at, :affected)"
                     ),

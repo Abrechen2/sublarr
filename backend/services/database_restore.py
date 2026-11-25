@@ -117,8 +117,8 @@ def _set_statement_timeout(seconds: int | None) -> None:
 
     if db.engine.dialect.name != "postgresql":
         return
-    value = f"{seconds}s" if seconds else "0"
-    db.session.execute(text(f"SET statement_timeout = '{value}'"))
+    value = f"{int(seconds)}s" if seconds else "0"
+    db.session.execute(text(f"SET statement_timeout = '{value}'"))  # sql-identifiers-only
 
 
 def _retire_restored_install_id() -> None:

@@ -63,7 +63,7 @@ def _staged_with_page_size(source_path: str, page_size: int, workdir: str) -> st
     staged = os.path.join(workdir, f"staged-{os.getpid()}-{int(datetime.now(UTC).timestamp())}.db")
     conn = sqlite3.connect(source_path, isolation_level=None)
     try:
-        conn.execute(f"PRAGMA page_size={int(page_size)}")
+        conn.execute(f"PRAGMA page_size={int(page_size)}")  # sql-identifiers-only
         conn.execute("VACUUM INTO ?", (staged,))
     finally:
         conn.close()

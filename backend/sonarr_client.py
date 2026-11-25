@@ -365,9 +365,7 @@ class SonarrClient(_SonarrDiagnosticsMixin):
 
     def anime_tag_ids(self, anime_tag="anime") -> set:
         """Ids of the Sonarr tags labelled ``anime_tag``."""
-        return {
-            t["id"] for t in self.get_tags() if t.get("label", "").lower() == anime_tag.lower()
-        }
+        return {t["id"] for t in self.get_tags() if t.get("label", "").lower() == anime_tag.lower()}
 
     def get_anime_series(self, anime_tag="anime"):
         """Get series filtered by anime tag, seriesType=anime, or 'Anime' genre.

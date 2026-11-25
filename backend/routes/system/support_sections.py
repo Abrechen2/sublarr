@@ -106,7 +106,9 @@ def _untracked_repairs(engine) -> dict:
         return {"registered": registered, "applied": [], "pending": registered}
     with engine.connect() as conn:
         rows = conn.execute(
-            sa.text(f"SELECT revision, applied_at, affected FROM {MARKER_TABLE}")
+            sa.text(
+                f"SELECT revision, applied_at, affected FROM {MARKER_TABLE}"
+            )  # sql-identifiers-only
         ).all()
     applied = [{"revision": r[0], "applied_at": r[1], "affected": r[2]} for r in rows]
     done = {a["revision"] for a in applied}

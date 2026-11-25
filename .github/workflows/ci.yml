@@ -108,6 +108,13 @@ jobs:
           python tools/test_lint_no_routes_import_in_services.py
           python tools/lint_no_routes_import_in_services.py
 
+      - name: Lint (security invariants — no SQL string building, no shell)
+        if: matrix.shard == 1
+        working-directory: ./backend
+        run: |
+          python tools/test_lint_security_invariants.py
+          python tools/lint_security_invariants.py
+
       - name: Type check (mypy)
         if: matrix.shard == 1
         working-directory: ./backend
