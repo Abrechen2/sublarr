@@ -37,6 +37,17 @@ VALID_MT_ON_ORIGINAL_FOUND = ("notify", "auto_replace")
 _COMBINE_LANG_RE = _re.compile(r"^[a-z]{2,3}\Z")
 
 
+#: A plain language tag ("en", "pt-BR"). The profile source names temporary
+#: files in the wanted search, so nothing else may be stored (#80).
+_SOURCE_LANG_RE = _re.compile(r"^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?\Z")
+
+
+def _clean_source_language(value) -> str:
+    if not isinstance(value, str) or not _SOURCE_LANG_RE.match(value):
+        raise ProfileValidationError("source_language must be a language code like 'en' or 'pt-BR'")
+    return value
+
+
 def _clean_combine_languages(value) -> list[str]:
     if not isinstance(value, list):
         return []
@@ -190,7 +201,7 @@ def validate_create_profile_data(data: dict) -> dict:
 
     return {
         "name": name,
-        "source_lang": data.get("source_language", "en"),
+        "source_lang": _clean_source_language(data.get("source_language", "en")),
         "source_name": data.get("source_language_name", "English"),
         "target_langs": target_langs,
         "target_names": data.get("target_language_names", ["German"]),
@@ -287,6 +298,9 @@ def validate_update_profile_fields(data: dict) -> dict:
 
     if "combine_languages" in fields:
         fields["combine_languages"] = _clean_combine_languages(fields["combine_languages"])
+
+    if "source_language" in fields:
+        fields["source_language"] = _clean_source_language(fields["source_language"])
 
     if "enabled_providers" in fields:
         fields["enabled_providers"] = _clean_enabled_providers(fields["enabled_providers"])
