@@ -307,7 +307,7 @@ def batch_extract():
         return jsonify({"error": "video_path and stream_index are required"}), 400
     try:
         stream_index = int(stream_index)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return jsonify({"error": "stream_index must be an integer"}), 400
     if stream_index < 0:
         return jsonify({"error": "stream_index must be non-negative"}), 400

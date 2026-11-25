@@ -148,7 +148,7 @@ def memory_purge():
     if older_than_days is not None:
         try:
             days = int(older_than_days)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, OverflowError):
             return (
                 jsonify(
                     {

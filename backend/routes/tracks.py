@@ -409,7 +409,7 @@ def detect_episode_dubtitle(ep_id):
     if min_score is not None:
         try:
             min_score = float(min_score)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, OverflowError):
             return jsonify({"error": "min_score must be a number"}), 400
 
     video_path = _get_video_path(ep_id)

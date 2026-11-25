@@ -92,13 +92,13 @@ def deep_unmask_blob(new_raw: str, key: str) -> str | None:
 
     try:
         new_list = json.loads(new_raw) if new_raw else []
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return None
     if not isinstance(new_list, list):
         return None
     try:
         stored_list = json.loads(get_config_entry(key) or "[]")
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         stored_list = []
     stored_dicts = [i for i in stored_list if isinstance(i, dict)]
     identities = [_identity(i) for i in stored_dicts]

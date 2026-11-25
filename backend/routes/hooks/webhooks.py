@@ -109,7 +109,7 @@ def create_webhook():
     try:
         retry_count = int(data.get("retry_count", 3))
         timeout_seconds = int(data.get("timeout_seconds", 10))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return jsonify({"error": "retry_count and timeout_seconds must be integers"}), 400
     retry_count = max(0, min(retry_count, 10))
     timeout_seconds = max(1, min(timeout_seconds, 300))
@@ -247,7 +247,7 @@ def update_webhook(webhook_id):
         if int_key in updates:
             try:
                 updates[int_key] = max(lo, min(int(updates[int_key]), hi))
-            except (TypeError, ValueError):
+            except (TypeError, ValueError, OverflowError):
                 return jsonify({"error": f"{int_key} must be an integer"}), 400
 
     if "url" in updates:

@@ -105,7 +105,7 @@ def wanted_dry_run():
         return jsonify({"error": "item_ids (non-empty list) is required"}), 400
     try:
         item_ids = [int(i) for i in item_ids]
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return jsonify({"error": "item_ids must be integers"}), 400
     if len(item_ids) > MAX_DRY_RUN_ITEMS:
         return jsonify({"error": f"At most {MAX_DRY_RUN_ITEMS} items per dry run"}), 400

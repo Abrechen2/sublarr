@@ -46,7 +46,7 @@ def _coerce_track_index(raw: object) -> int | None:
     if not isinstance(raw, int):
         try:
             raw = int(raw)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, OverflowError):
             return None
     return raw if raw >= 0 else None
 

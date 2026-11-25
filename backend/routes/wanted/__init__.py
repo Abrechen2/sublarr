@@ -14,7 +14,7 @@ def _series_wanted(series_id: int) -> list:
 
     try:
         ref = resolve_series_ref(int(series_id))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return []
     return get_wanted_for_series(ref.id, standalone=ref.is_standalone)
 

@@ -38,7 +38,7 @@ def list_runs():
 
     try:
         limit = int(request.args.get("limit", 50))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         limit = 50
     limit = max(1, min(limit, 500))
 

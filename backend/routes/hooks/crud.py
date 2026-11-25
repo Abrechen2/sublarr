@@ -93,7 +93,7 @@ def create_hook():
     script_path = data.get("script_path", "").strip()
     try:
         timeout_seconds = int(data.get("timeout_seconds", 30))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return jsonify({"error": "timeout_seconds must be an integer"}), 400
     timeout_seconds = max(1, min(timeout_seconds, 300))
 

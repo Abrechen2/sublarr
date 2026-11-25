@@ -151,7 +151,10 @@ def suggest_glossary_candidates(series_id):
 
     body = request.get_json(silent=True) or {}
     source_lang = (body.get("source_lang") or "en").strip()
-    min_freq = int(body.get("min_freq") or 3)
+    try:
+        min_freq = int(body.get("min_freq") or 3)
+    except (TypeError, ValueError, OverflowError):
+        return jsonify({"error": "min_freq must be an integer"}), 400
 
     candidates = _lib_pkg.extract_candidates(
         media_path,

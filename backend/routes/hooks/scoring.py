@@ -110,7 +110,10 @@ def update_weights():
         return jsonify({"error": "Payload must be a JSON object"}), 400
 
     allowed = {"episode": set(EPISODE_SCORES), "movie": set(MOVIE_SCORES)}
-    weights = {t: data[t] for t in allowed if isinstance(data.get(t), dict)}
+    for score_type in allowed:
+        if score_type in data and not isinstance(data[score_type], dict):
+            return jsonify({"error": f"{score_type} must be an object of weights"}), 400
+    weights = {t: data[t] for t in allowed if t in data}
     # Validate everything before writing anything, then write in one
     # transaction: a bad value used to fail halfway with a 500 (#56 sweep).
     for score_type, values in weights.items():
@@ -509,11 +512,16 @@ def update_penalty_rule(rule_id):
     if not any(cls.rule_id == rule_id for cls in _RULE_REGISTRY):
         return jsonify({"error": "unknown rule_id", "rule_id": rule_id}), 404
 
+    from scoring_presets import MAX_WEIGHT, MIN_WEIGHT
+
     data = request.get_json(silent=True) or {}
     try:
         weight = int(data.get("weight", 0))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return jsonify({"error": "weight must be an integer"}), 400
+    # Same range as the scoring weights (#56 sweep): 1e400 used to end in a 500.
+    if not MIN_WEIGHT <= weight <= MAX_WEIGHT:
+        return jsonify({"error": f"weight must be an integer {MIN_WEIGHT}..{MAX_WEIGHT}"}), 400
 
     set_penalty_rule_weight(rule_id, weight)
     invalidate_scoring_cache()

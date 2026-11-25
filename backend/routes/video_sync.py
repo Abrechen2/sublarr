@@ -417,7 +417,7 @@ def auto_sync_bulk():
     if scope == "series":
         try:
             series_ref = resolve_series_ref(int(series_id))
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, OverflowError):
             return jsonify({"error": "series_id must be an integer"}), 400
         if series_ref.is_standalone:
             series_paths = _bulk_videos_from_standalone(series_ref.id)

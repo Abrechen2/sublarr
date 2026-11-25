@@ -105,7 +105,7 @@ def save_whisper_config():
     if "max_concurrent_whisper" in data:
         try:
             n = int(data["max_concurrent_whisper"])
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, OverflowError):
             return jsonify({"error": "max_concurrent_whisper must be an integer"}), 400
         if n < 1 or n > 16:
             return jsonify({"error": "max_concurrent_whisper must be between 1 and 16"}), 400

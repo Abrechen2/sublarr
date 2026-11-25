@@ -463,7 +463,7 @@ def cleanup_subtitle_backups():
     default_retention = int(getattr(s, "subtitle_bak_retention_days", 30) or 0)
     try:
         older_than_days = int(body.get("older_than_days", default_retention))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return jsonify({"error": "older_than_days must be an integer"}), 400
     # Negative values would underflow into a "delete everything" date. 0 stays
     # legal (intentional age-check disable, paired with orphans_only).

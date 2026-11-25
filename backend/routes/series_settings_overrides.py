@@ -67,7 +67,7 @@ def patch_series_settings(series_id: int):
     if "min_attempts_per_day" in data:
         try:
             mv = int(data["min_attempts_per_day"])
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, OverflowError):
             return jsonify({"error": "min_attempts_per_day must be an integer"}), 400
         if mv < _MIN_ATTEMPTS_MIN or mv > _MIN_ATTEMPTS_MAX:
             return jsonify(

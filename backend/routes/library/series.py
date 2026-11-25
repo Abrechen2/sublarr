@@ -30,7 +30,10 @@ from services.standalone_library import (
 
 def _profile_source(profile: dict | None, settings) -> tuple[str, str]:
     """The series' translation source: its profile's, else the global one (#80)."""
-    code = (profile or {}).get("source_language") or ""
+    from services.profile_service import normalize_source_tag
+
+    # Same reading as the wanted search, so the page shows what is used.
+    code = normalize_source_tag((profile or {}).get("source_language")) or ""
     if not code:
         return settings.source_language, settings.source_language_name
     from config_language_data import language_name

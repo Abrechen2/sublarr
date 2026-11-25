@@ -215,11 +215,11 @@ def create_screenshot():
 
     try:
         width = max(160, min(int(raw_width), _SCREENSHOT_WIDTH_MAX))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return jsonify({"error": "width must be an integer"}), 400
     try:
         timestamp = max(0.0, float(timestamp))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return jsonify({"error": "timestamp must be a number"}), 400
 
     # The configured path mapping (#61 A26: a "media_path_mapping" setting

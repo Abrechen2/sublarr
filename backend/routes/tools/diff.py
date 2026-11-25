@@ -200,7 +200,7 @@ def apply_diff():
         return jsonify({"error": "last_modified is required"}), 400
     try:
         loaded_mtime = float(last_modified)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return jsonify({"error": "last_modified must be a number"}), 400
 
     try:
