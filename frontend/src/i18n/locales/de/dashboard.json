@@ -25,9 +25,6 @@
     "healthy": "Gesund",
     "error": "Fehler"
   },
-  "wanted_summary": {
-    "searching": "Suche"
-  },
   "automation": {
     "title": "Automatisierung läuft",
     "successRate": "Erfolgsrate",
@@ -35,10 +32,6 @@
     "needsAttention": "Braucht Aufmerksamkeit",
     "pause": "Pausieren",
     "runNow": "Jetzt starten"
-  },
-  "by_format": {
-    "title": "Nach Format",
-    "no_data": "Noch keine Daten"
   },
   "system": {
     "title": "System",
