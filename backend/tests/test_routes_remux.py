@@ -707,12 +707,31 @@ class TestRestoreBackup:
         assert rv.status_code == 404
         assert "video file not found" in rv.get_json()["error"].lower()
 
+    def test_restore_refuses_a_target_that_is_not_the_origin(self, client):
+        """#47: a same-named video elsewhere must never receive the backup."""
+        with (
+            patch("routes.remux._trash_paths", return_value=["/safe/trash"]),
+            patch("routes.remux._media_paths", return_value=["/media"]),
+            patch("routes.remux.is_safe_path", return_value=True),
+            patch("routes.remux.os.path.exists", return_value=True),
+            patch("remux.backup_cleanup.read_origin", return_value="/media/Show A/ep.mkv"),
+            patch("routes.remux.os.replace") as mock_replace,
+        ):
+            rv = client.post(
+                "/api/v1/remux/backups/restore",
+                json={"backup_path": "/safe/trash/ep.bak", "video_path": "/media/ep.mkv"},
+            )
+
+        assert rv.status_code == 409
+        mock_replace.assert_not_called()
+
     def test_restore_success(self, client):
         with (
             patch("routes.remux._trash_paths", return_value=["/safe/trash"]),
             patch("routes.remux._media_paths", return_value=["/media"]),
             patch("routes.remux.is_safe_path", return_value=True),
             patch("routes.remux.os.path.exists", return_value=True),
+            patch("remux.backup_cleanup.read_origin", return_value="/media/ep.mkv"),
             patch("routes.remux.os.replace") as mock_replace,
         ):
             rv = client.post(
@@ -733,6 +752,7 @@ class TestRestoreBackup:
             patch("routes.remux._media_paths", return_value=["/media"]),
             patch("routes.remux.is_safe_path", return_value=True),
             patch("routes.remux.os.path.exists", return_value=True),
+            patch("remux.backup_cleanup.read_origin", return_value="/media/ep.mkv"),
             patch("routes.remux.os.replace", side_effect=OSError("disk full")),
         ):
             rv = client.post(
@@ -749,6 +769,7 @@ class TestRestoreBackup:
             patch("routes.remux._media_paths", return_value=["/media"]),
             patch("routes.remux.is_safe_path", return_value=True),
             patch("routes.remux.os.path.exists", return_value=True),
+            patch("remux.backup_cleanup.read_origin", return_value="/media/ep.mkv"),
             patch("routes.remux.os.replace"),
             patch("routes.remux._purge_sidecars_for_video", return_value=3),
         ):

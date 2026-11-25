@@ -359,9 +359,19 @@ def restore_backup():
     if not os.path.exists(video_path):
         return jsonify({"error": "Video file not found (already deleted?): " + video_path}), 404
 
+    # A backup restores only onto the video it was taken from: the central
+    # trash keeps basenames only, and a same-named video elsewhere was once
+    # offered and overwritten (#47).
+    from remux.backup_cleanup import read_origin, remove_origin
+
+    origin = read_origin(backup_path)
+    if origin is None or os.path.normpath(origin) != os.path.normpath(video_path):
+        return jsonify({"error": "video_path is not the original of this backup"}), 409
+
     try:
         # Replace the remuxed file with the backup (atomic on same filesystem)
         os.replace(backup_path, video_path)
+        remove_origin(backup_path)
         logger.info("Remux restore: %s → %s", backup_path, video_path)
     except OSError as exc:
         logger.error("Remux restore failed: %s", exc)
@@ -401,6 +411,9 @@ def delete_backup():
 
     try:
         os.remove(backup_path)
+        from remux.backup_cleanup import remove_origin
+
+        remove_origin(backup_path)
         logger.info("MKV backup deleted: %s", backup_path)
     except OSError as exc:
         logger.error("Failed to delete MKV backup: %s", exc)

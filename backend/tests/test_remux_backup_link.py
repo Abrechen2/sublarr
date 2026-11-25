@@ -103,7 +103,10 @@ def test_copy_fallback_does_not_leave_a_link_attempt_behind(tmp_path):
         bak = _make_backup(video, use_reflink=False, trash_dir=trash)
 
     day_dir = os.path.dirname(bak)
-    assert os.listdir(day_dir) == [os.path.basename(bak)]
+    # The origin record (#47) sits beside the backup; nothing else may.
+    assert sorted(os.listdir(day_dir)) == sorted(
+        [os.path.basename(bak), os.path.basename(bak) + ".origin.json"]
+    )
 
 
 def test_reflink_is_requested_strictly_not_auto():

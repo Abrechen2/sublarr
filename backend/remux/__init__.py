@@ -220,6 +220,20 @@ def _link_backup(video_path: str, dest_dir: str, basename: str, timestamp: int) 
         return candidate
 
 
+def _record_backup_origin(bak_path: str, video_path: str) -> None:
+    """Write the origin record; a failure leaves a backup without a restore target."""
+    from remux.backup_cleanup import write_origin
+
+    try:
+        write_origin(bak_path, video_path)
+    except OSError as exc:
+        logger.warning(
+            "Remux: could not record the origin of %s (%s) — it cannot be restored from the UI",
+            bak_path,
+            exc,
+        )
+
+
 def _make_backup(video_path: str, use_reflink: bool, trash_dir: str = "") -> str:
     """Keep the original in the trash directory and return the backup path.
 
@@ -255,6 +269,7 @@ def _make_backup(video_path: str, use_reflink: bool, trash_dir: str = "") -> str
         linked = _link_backup(video_path, dest_dir, basename, timestamp)
         if linked:
             logger.info("Remux: hardlink backup in trash: %s", linked)
+            _record_backup_origin(linked, video_path)
             return linked
         # The trash is flat and the name carries whole seconds only, so two
         # episodes of the same name from different season folders compete for
@@ -268,6 +283,7 @@ def _make_backup(video_path: str, use_reflink: bool, trash_dir: str = "") -> str
         else:
             shutil.copy2(video_path, bak_path)
             logger.info("Remux: backup copied to trash: %s", bak_path)
+        _record_backup_origin(bak_path, video_path)
         return bak_path
     except OSError as exc:
         raise RemuxError(f"could not create backup in trash dir {dest_dir}: {exc}") from exc

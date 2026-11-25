@@ -6,6 +6,7 @@ Scans all watched media directories for *.bak files older than
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import re
@@ -16,6 +17,49 @@ logger = logging.getLogger(__name__)
 #: ``<video>.<epoch>.bak``, or ``<video>.<epoch>.<uuid8>.bak`` when a second
 #: backup lands in the same second (``_make_backup`` collision suffix, #46).
 _STAMP_SUFFIX_RE = re.compile(r"\.(\d{7,})(?:\.[0-9a-f]{8})?\.bak$")
+
+
+#: Suffix of the record ``_make_backup`` writes next to each backup (#47).
+ORIGIN_SUFFIX = ".origin.json"
+
+
+def origin_path_for(bak_path: str) -> str:
+    """Path of the origin record that belongs to ``bak_path``."""
+    return bak_path + ORIGIN_SUFFIX
+
+
+def write_origin(bak_path: str, video_path: str) -> None:
+    """Record the full original path of a backup next to it.
+
+    The central trash keeps only the basename, so without this record the
+    origin of a backup from a series subfolder is unknown (#47).
+    """
+    from utils.atomic_write import atomic_write_bytes
+
+    atomic_write_bytes(
+        origin_path_for(bak_path), json.dumps({"original": video_path}).encode("utf-8")
+    )
+
+
+def read_origin(bak_path: str) -> str | None:
+    """The recorded original path of ``bak_path``, or None without a usable record."""
+    try:
+        with open(origin_path_for(bak_path), encoding="utf-8") as fh:
+            original = json.load(fh).get("original")
+    except FileNotFoundError:
+        return None
+    except (OSError, ValueError, AttributeError) as exc:
+        logger.warning("Unreadable origin record for %s: %s", bak_path, exc)
+        return None
+    return original if isinstance(original, str) and original else None
+
+
+def remove_origin(bak_path: str) -> None:
+    """Delete the origin record of a backup that is gone; a missing one is fine."""
+    try:
+        os.unlink(origin_path_for(bak_path))
+    except FileNotFoundError:
+        pass
 
 
 def _derive_video_path(bak_path: str) -> str | None:
@@ -100,6 +144,7 @@ def cleanup_old_backups(media_paths: list[str], retention_days: int) -> dict:
             created = backup_created_at(bak_path)
             if created < cutoff:
                 os.unlink(bak_path)
+                remove_origin(bak_path)
                 deleted.append(bak_path)
                 logger.info("Remux backup deleted (age > %d days): %s", retention_days, bak_path)
             else:
@@ -122,7 +167,10 @@ def list_backups(media_paths: list[str], retention_days: int = 0) -> list[dict]:
     for bak_path in _iter_bak_files(media_paths):
         try:
             stat = os.stat(bak_path)
-            video_path = _derive_video_path(bak_path)
+            # Only the recorded origin counts. Rebuilding it from the trash
+            # layout offered an unrelated same-named video for restore (#47);
+            # a legacy backup without a record stays unassigned.
+            video_path = read_origin(bak_path)
             # Only expose video_path if it exists on disk
             if video_path and not os.path.isfile(video_path):
                 video_path = None
