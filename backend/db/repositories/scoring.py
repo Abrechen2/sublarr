@@ -88,6 +88,19 @@ class ScoringRepository(BaseRepository):
                 self.session.add(entry)
         self._commit()
 
+    def apply_preset(self, weights: dict, modifiers: dict) -> None:
+        """Write a preset's weights and provider modifiers in one transaction.
+
+        Either every value lands or none does: a failure halfway used to
+        leave the earlier categories committed (Forgejo #56).
+        """
+        with self.batch():
+            for score_type, weights_dict in weights.items():
+                if weights_dict:
+                    self.set_scoring_weights(score_type, weights_dict)
+            for provider_name, modifier in modifiers.items():
+                self.set_provider_modifier(provider_name, modifier)
+
     def get_all_scoring_weights(self) -> dict:
         """Get all scoring weights with defaults filled in.
 

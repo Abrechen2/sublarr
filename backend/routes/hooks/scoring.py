@@ -355,7 +355,7 @@ def import_preset():
         400:
           description: Invalid preset data
     """
-    from db.scoring import set_provider_modifier, set_scoring_weights
+    from db.scoring import apply_scoring_preset
     from providers.base import invalidate_scoring_cache
     from scoring_presets import validate_preset
 
@@ -363,18 +363,11 @@ def import_preset():
     if not data or not validate_preset(data):
         return jsonify({"error": "Invalid preset data"}), 400
 
-    applied: dict = {"weights": {}, "provider_modifiers": {}}
-
-    weights = data.get("weights", {})
-    for score_type, w in weights.items():
-        if w:
-            set_scoring_weights(score_type, w)
-            applied["weights"][score_type] = w
-
-    modifiers = data.get("provider_modifiers", {})
-    for provider_name, modifier in modifiers.items():
-        set_provider_modifier(provider_name, int(modifier))
-        applied["provider_modifiers"][provider_name] = modifier
+    weights = {score_type: w for score_type, w in data.get("weights", {}).items() if w}
+    modifiers = dict(data.get("provider_modifiers", {}))
+    # One transaction: a failure keeps every previous value (Forgejo #56).
+    apply_scoring_preset(weights, modifiers)
+    applied = {"weights": weights, "provider_modifiers": modifiers}
 
     invalidate_scoring_cache()
     invalidate_response_cache()
