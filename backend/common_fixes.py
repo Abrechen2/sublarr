@@ -32,6 +32,9 @@ _OVERLAP_IS_INTENTIONAL_FORMATS = ("ass", "ssa")
 # would be written as a bare file line and break the ASS/SSA file.
 _LINE_BREAK = "\\N"
 _OVERRIDE_OR_BREAK_RE = re.compile(r"\{[^}]*\}|\\[Nn]")
+_POSITIONING_TAG_RE = re.compile(r"\\(?:an?\d|pos|move)")
+_MAX_MERGE_GAP_MS = 500
+_MAX_MERGE_CHARS = 20
 
 
 def _wrap_text_keeping_tags(text: str, width: int) -> str:
@@ -79,6 +82,31 @@ def _wrap_text_keeping_tags(text: str, width: int) -> str:
             out.append(original)
         vis_idx += 1
     return "".join(out)
+
+
+def _can_merge_events(a: pysubs2.SSAEvent, b: pysubs2.SSAEvent) -> bool:
+    """True when ``b`` may be folded into ``a`` as a second line of the same cue.
+
+    Only consecutive, non-overlapping events that share layer, style and margins
+    qualify, and neither may carry its own position - merging those would drop
+    one of the placements (Forgejo #45).
+    """
+    gap = b.start - a.end
+    if gap < 0 or gap > _MAX_MERGE_GAP_MS:
+        return False
+    if (a.layer, a.style, a.marginl, a.marginr, a.marginv) != (
+        b.layer,
+        b.style,
+        b.marginl,
+        b.marginr,
+        b.marginv,
+    ):
+        return False
+    if _POSITIONING_TAG_RE.search(a.text) or _POSITIONING_TAG_RE.search(b.text):
+        return False
+    return (
+        len(a.plaintext.strip()) < _MAX_MERGE_CHARS and len(b.plaintext.strip()) < _MAX_MERGE_CHARS
+    )
 
 
 def apply_common_fixes(
@@ -192,16 +220,16 @@ def apply_common_fixes(
     for i in sorted(to_remove, reverse=True):
         del subs.events[i]
 
-    # Short line merge: combine adjacent short events (within 500ms gap, both under 20 chars)
+    # Short line merge: combine adjacent short events of the same layer/style
+    # (non-overlapping, within 500ms gap, both under 20 chars)
     if opts["short_line_merge"]:
         i = 0
         while i < len(subs.events) - 1:
             a = subs.events[i]
             b = subs.events[i + 1]
-            gap = b.start - a.end
-            if gap <= 500 and len(a.plaintext.strip()) < 20 and len(b.plaintext.strip()) < 20:
+            if _can_merge_events(a, b):
                 ts = f"{_ms_to_str(a.start)} --> {_ms_to_str(a.end)}"
-                merged_text = a.text.rstrip() + "\n" + b.text.lstrip()
+                merged_text = a.text.rstrip() + _LINE_BREAK + b.text.lstrip()
                 changes.append(Change(i, ts, a.plaintext.strip(), merged_text, "common_fixes"))
                 a.text = merged_text
                 a.end = b.end
