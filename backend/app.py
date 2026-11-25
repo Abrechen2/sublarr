@@ -10,7 +10,6 @@ app_shutdown / app_schedulers so this file stays focused on the factory
 itself.
 """
 
-import hmac
 import logging
 import os
 
@@ -756,24 +755,14 @@ def create_app(testing=False):
         @socketio.on("connect")
         def handle_connect(auth):
             import ui_auth as _ui_auth_ws
-            from config import get_settings as _gs
 
-            _api_key = getattr(_gs(), "api_key", None)
-            if _api_key:
-                # Same contract as the HTTP API gate: a logged-in UI session
-                # counts. The Socket.IO handshake is an ordinary HTTP request
-                # carrying the session cookie, so a browser that authenticated
-                # via /auth/login but holds no key in localStorage (fresh
-                # profile, or stale key after a server-side key change) must
-                # not lose the WebSocket silently — that degraded log
-                # streaming and live updates without any visible error.
-                if _ui_auth_ws.has_valid_session():
-                    logger.debug("WebSocket client connected (UI session)")
-                    return None
-                provided = (auth or {}).get("apikey", "")
-                if not hmac.compare_digest(provided, _api_key):
-                    logger.warning("WebSocket connection rejected: invalid API key")
-                    return False
+            # Same rules as the HTTP API gate, which /socket.io/ is exempt
+            # from: UI session or API key, and before the first setup only the
+            # local network (#79). A logged-in browser without a key in
+            # localStorage keeps its WebSocket (log streaming, live updates).
+            if not _ui_auth_ws.socket_connect_allowed((auth or {}).get("apikey", "")):
+                logger.warning("WebSocket connection rejected: not authenticated")
+                return False
             logger.debug("WebSocket client connected")
 
         @socketio.on("disconnect")

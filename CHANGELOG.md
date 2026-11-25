@@ -13,7 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   were readable by anyone who reached the port first. Until the setup is done,
   requests from outside the local network (or through a reverse proxy) now get
   403; the setup itself, `/health`, API-key clients and trusted proxy auth stay
-  open.
+  open. The live connection (log stream, live updates) follows the same rule,
+  and with UI auth on it now needs a login even when no API key is set.
 - **Catalog providers could reach local files and the LAN** — Optional catalog
   bundles fetched URLs without the download guard: `file://`, loopback, LAN
   and metadata addresses were reachable, including through redirects. Every

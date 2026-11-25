@@ -295,6 +295,46 @@ _EXEMPT_PATHS = {"/api/v1/health"}
 _EXEMPT_PREFIXES = ("/api/v1/auth/", "/socket.io/")
 
 
+def _setup_blocks_request() -> bool:
+    """True for a non-local, unauthenticated request before the first setup (#79)."""
+    if request_is_local_network():
+        return False
+    try:
+        configured = is_ui_auth_configured()
+    except Exception as exc:  # noqa: BLE001 — fail closed, the setup stays reachable
+        logger.warning("Cannot tell whether UI auth is set up (%s); refusing remote API", exc)
+        configured = False
+    if configured or _has_valid_api_key():
+        return False
+    from proxy_auth import request_has_valid_proxy_auth
+
+    return not request_has_valid_proxy_auth()
+
+
+def socket_connect_allowed(provided_key: str) -> bool:
+    """The Socket.IO handshake gate — the HTTP API gate's rules (#79).
+
+    /socket.io/ is exempt from check_ui_session, so this has to apply them
+    itself: a UI session or the API key (when one is set) opens it; with UI
+    auth on, nothing else does; before the first setup only the local
+    network does.
+    """
+    from config import get_settings
+
+    if has_valid_session():
+        return True
+    api_key = getattr(get_settings(), "api_key", "")
+    if api_key:
+        return bool(provided_key) and hmac.compare_digest(str(provided_key), api_key)
+    from proxy_auth import request_has_valid_proxy_auth
+
+    if request_has_valid_proxy_auth():
+        return True
+    if is_ui_auth_enabled():
+        return False
+    return not _setup_blocks_request()
+
+
 def _refuse_before_setup():
     """403 for a non-local request while the first setup is not done (#79).
 
@@ -305,18 +345,7 @@ def _refuse_before_setup():
     pass. Once the setup is done (password set, or auth deliberately
     disabled) this never refuses.
     """
-    if request_is_local_network():
-        return None
-    try:
-        configured = is_ui_auth_configured()
-    except Exception as exc:  # noqa: BLE001 — fail closed, the setup stays reachable
-        logger.warning("Cannot tell whether UI auth is set up (%s); refusing remote API", exc)
-        configured = False
-    if configured or _has_valid_api_key():
-        return None
-    from proxy_auth import request_has_valid_proxy_auth
-
-    if request_has_valid_proxy_auth():
+    if not _setup_blocks_request():
         return None
     return jsonify(
         {
