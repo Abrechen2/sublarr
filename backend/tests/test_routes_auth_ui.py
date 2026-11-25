@@ -282,6 +282,11 @@ def test_toggle_disable_with_session(app, monkeypatch):
 # both the first setup and the password change.
 @pytest.mark.parametrize(("password", "status"), [("1234567", 400), ("12345678", 200)])
 def test_setup_password_minimum_is_eight(app, monkeypatch, password, status):
+    from extensions import limiter
+
+    # /auth/setup allows 5 calls a minute per address, shared with every other
+    # test in this worker; the boundary, not the limiter, is under test here.
+    monkeypatch.setattr(limiter, "enabled", False)
     monkeypatch.setattr(ui_auth, "is_ui_auth_configured", lambda: False)
     with app.test_client() as client:
         r = client.post("/api/v1/auth/setup", json={"action": "set_password", "password": password})
@@ -290,6 +295,9 @@ def test_setup_password_minimum_is_eight(app, monkeypatch, password, status):
 
 @pytest.mark.parametrize(("password", "status"), [("1234567", 400), ("12345678", 200)])
 def test_change_password_minimum_is_eight(app, monkeypatch, password, status):
+    from extensions import limiter
+
+    monkeypatch.setattr(limiter, "enabled", False)
     pw_hash = ui_auth.hash_password("old")
     monkeypatch.setattr(
         ui_auth, "_get_config_entry", lambda k: pw_hash if k == "ui_password_hash" else "true"
