@@ -12,8 +12,8 @@ touched it — and repair leaves it alone.
 Because the proof is only as good as the replay, this code must NOT be "fixed",
 tidied, or kept in sync with the live pipeline. It is a historical artefact and
 has to stay bug-for-bug identical to what 1.6.5 shipped. ``common_fixes`` was
-never part of the bug and is unchanged, so it is imported from the live module
-rather than frozen here.
+never part of the bug, but the live module has changed since (#44, #45), so
+the 1.6.5 version is frozen in ``legacy_common_fixes`` too.
 
 The bug, for the record: the interjection list below is English, it was compiled
 into a bare ``\\b(?:...)\\b`` substitution, and it was applied to subtitles of
@@ -186,7 +186,7 @@ def replay_legacy_pipeline_with_survivors(
         origin[id(event)] = i
 
     if common_fixes:
-        from common_fixes import apply_common_fixes
+        from services.repair.legacy_common_fixes import apply_common_fixes
 
         apply_common_fixes(subs, common_fixes_options or {})
 
