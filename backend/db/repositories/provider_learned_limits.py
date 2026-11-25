@@ -111,7 +111,7 @@ class ProviderLearnedLimitsRepository(BaseRepository):
         row.updated_at = now
         if observed_limit is not None:
             row.observed_limit = observed_limit
-        self.session.commit()
+        self._commit_now()
         logger.debug(
             "provider_learned_limits: 429 for %s/%s -> factor=%.3f",
             provider,
@@ -166,7 +166,7 @@ class ProviderLearnedLimitsRepository(BaseRepository):
             and float(row.adjustment_factor) < _FACTOR_CEILING
         ):
             row.adjustment_factor = min(_FACTOR_CEILING, float(row.adjustment_factor) + step)
-        self.session.commit()
+        self._commit_now()
         return float(row.adjustment_factor)
 
     def reset(self, provider: str, window: str) -> None:
@@ -179,4 +179,4 @@ class ProviderLearnedLimitsRepository(BaseRepository):
                 ProviderLearnedLimit.window_type == window,
             )
         )
-        self.session.commit()
+        self._commit_now()

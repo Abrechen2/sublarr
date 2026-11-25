@@ -25,6 +25,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import case, func, or_, select
+from sqlalchemy.exc import IntegrityError
 
 from db.models.core import SubtitleAutomationQueueEntry
 from db.repositories.base import BaseRepository
@@ -126,15 +127,7 @@ class SubtitleAutomationQueueRepository(BaseRepository):
         its owner folder.
         """
         now = self._now()
-        existing = (
-            self.session.query(SubtitleAutomationQueueEntry)
-            .filter(
-                SubtitleAutomationQueueEntry.wanted_item_id == wanted_item_id,
-                SubtitleAutomationQueueEntry.task_type == task_type,
-                SubtitleAutomationQueueEntry.file_path == file_path,
-            )
-            .one_or_none()
-        )
+        existing = self._find_existing(wanted_item_id, task_type, file_path)
         if existing is not None:
             # A terminal cleanup failure is reopened too: a new download means
             # the video it failed on exists again. Only for this type — the
@@ -173,9 +166,34 @@ class SubtitleAutomationQueueRepository(BaseRepository):
             created_at=now,
             updated_at=now,
         )
-        self.session.add(entry)
+        # A concurrent caller (webhook and wanted search finishing the same
+        # item) can insert the same key between the lookup and this INSERT.
+        # The savepoint confines the failed flush, so the session — and any
+        # batch it is part of — stays usable and the winner's row is returned
+        # instead of an IntegrityError that poisons the caller (#81).
+        try:
+            with self.session.begin_nested():
+                self.session.add(entry)
+        except IntegrityError:
+            winner = self._find_existing(wanted_item_id, task_type, file_path)
+            if winner is None:
+                raise
+            return winner.id
         self._commit()
         return entry.id
+
+    def _find_existing(
+        self, wanted_item_id: int, task_type: str, file_path: str
+    ) -> SubtitleAutomationQueueEntry | None:
+        return (
+            self.session.query(SubtitleAutomationQueueEntry)
+            .filter(
+                SubtitleAutomationQueueEntry.wanted_item_id == wanted_item_id,
+                SubtitleAutomationQueueEntry.task_type == task_type,
+                SubtitleAutomationQueueEntry.file_path == file_path,
+            )
+            .one_or_none()
+        )
 
     def claim_next(
         self, *, now: datetime | None = None, task_types: set[str] | None = None

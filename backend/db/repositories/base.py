@@ -37,9 +37,23 @@ class BaseRepository:
         return db.session
 
     def _commit(self):
-        """Commit the current session (no-op in batch mode)."""
+        """Commit the current session (no-op in batch mode).
+
+        A failed commit is rolled back before the error propagates. Many
+        callers treat a write as best effort and swallow the error; without
+        the rollback the request-scoped session stays in a failed state and
+        every later statement in that request fails too (#81).
+        """
         if not self._batch_mode:
+            self._commit_now()
+
+    def _commit_now(self):
+        """Commit even in batch mode; roll back if the commit fails (see _commit)."""
+        try:
             self.session.commit()
+        except Exception:
+            self.session.rollback()
+            raise
 
     @contextmanager
     def batch(self):

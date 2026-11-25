@@ -240,7 +240,7 @@ class ProviderRepository(BaseRepository):
                 SubtitleDownload.source == "machine_translation",
             )
         )
-        self.session.commit()
+        self._commit_now()
         return result.rowcount or 0
 
     def get_machine_translation_sidecars(self, video_path: str) -> list[tuple[str, str]]:

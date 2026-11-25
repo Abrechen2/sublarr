@@ -327,4 +327,4 @@ class LibraryRepository(BaseRepository):
     def delete_download_record(self, file_path: str) -> None:
         """Delete subtitle_downloads entry for the given file path."""
         self.session.query(SubtitleDownload).filter_by(file_path=file_path).delete()
-        self.session.commit()
+        self._commit_now()

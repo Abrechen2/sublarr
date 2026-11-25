@@ -69,7 +69,7 @@ class ProviderAccountPoolRepository(BaseRepository):
             enabled=enabled,
         )
         self.session.add(row)
-        self.session.commit()
+        self._commit_now()
         return row.id
 
     def get(self, row_id: int) -> dict | None:
@@ -139,7 +139,7 @@ class ProviderAccountPoolRepository(BaseRepository):
             if k in ("api_key", "password"):
                 v = encrypt(v)
             setattr(row, k, v)
-        self.session.commit()
+        self._commit_now()
         return True
 
     def delete(self, row_id: int) -> None:
@@ -147,7 +147,7 @@ class ProviderAccountPoolRepository(BaseRepository):
         if row is None:
             return
         self.session.delete(row)
-        self.session.commit()
+        self._commit_now()
 
     def mark_429(self, row_id: int, now: datetime | None = None) -> None:
         if now is None:
@@ -156,7 +156,7 @@ class ProviderAccountPoolRepository(BaseRepository):
         if row is None:
             return
         row.last_429_at = now
-        self.session.commit()
+        self._commit_now()
 
     def mark_used(self, row_id: int, now: datetime | None = None) -> None:
         if now is None:
@@ -165,4 +165,4 @@ class ProviderAccountPoolRepository(BaseRepository):
         if row is None:
             return
         row.last_used_at = now
-        self.session.commit()
+        self._commit_now()
