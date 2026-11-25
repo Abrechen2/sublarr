@@ -261,6 +261,19 @@ class SubtitleResult:
 
 # ─── Scoring weights (adapted from Bazarr/subliminal) ────────────────────────
 
+#: Breakdown value of an exclusion (hi_preference / forced_scoring
+#: "exclude"/"only"). The final score of an excluded candidate is capped at it,
+#: so no bonus — provider modifiers are unbounded — can lift it back (#34).
+KILL_SWITCH_SCORE = -999
+#: Breakdown keys that carry an exclusion — the legacy ones and the penalty
+#: rules that supersede them.
+_KILL_SWITCH_KEYS = (
+    "hi_preference",
+    "forced_preference",
+    "rule:hi_preference_exclude_or_only",
+    "rule:forced_preference_exclude_or_only",
+)
+
 EPISODE_SCORES = {
     "hash": 359,
     "series": 180,
@@ -457,6 +470,7 @@ def compute_score(result: SubtitleResult, query: VideoQuery) -> int:
         from config import get_settings  # local import to avoid circular deps
 
         hi_pref = getattr(get_settings(), "hi_preference", "include")
+    excluded = False
     if hi_pref == "prefer" and result.hearing_impaired:
         breakdown["hi_preference"] = 30
     elif (
@@ -465,7 +479,8 @@ def compute_score(result: SubtitleResult, query: VideoQuery) -> int:
         or hi_pref == "only"
         and not result.hearing_impaired
     ):
-        breakdown["hi_preference"] = -999
+        breakdown["hi_preference"] = KILL_SWITCH_SCORE
+        excluded = True
 
     # Forced scoring preference of the query. The global forced_preference
     # setting is gone: regular items only see full subtitles (full_only) and
@@ -475,7 +490,8 @@ def compute_score(result: SubtitleResult, query: VideoQuery) -> int:
     if forced_pref == "prefer" and result.forced:
         breakdown["forced_preference"] = 30
     elif forced_pref == "exclude" and result.forced or forced_pref == "only" and not result.forced:
-        breakdown["forced_preference"] = -999
+        breakdown["forced_preference"] = KILL_SWITCH_SCORE
+        excluded = True
 
     # Plan B4 — additive penalty rule pipeline. The driver is pure (returns
     # a {rule_id: weight} dict without mutating candidate.score). We merge
@@ -518,7 +534,18 @@ def compute_score(result: SubtitleResult, query: VideoQuery) -> int:
         pass
 
     result.score_breakdown = breakdown
-    result.score = sum(breakdown.values())
+    total = sum(breakdown.values())
+    if excluded:
+        # An excluded candidate lives in its own band below the kill switch
+        # (-1998..-1000): no bonus lifts it out, and excluded candidates
+        # still rank among themselves by the rest of their score.
+        rest = total - sum(min(0, breakdown.get(key, 0)) for key in _KILL_SWITCH_KEYS)
+        banded = 2 * KILL_SWITCH_SCORE + max(0, min(rest, -KILL_SWITCH_SCORE - 1))
+        if banded != total:
+            # Keep score == sum(breakdown) for the UI and the #30 invariant.
+            breakdown["exclusion_band"] = banded - total
+            total = banded
+    result.score = total
     return result.score
 
 

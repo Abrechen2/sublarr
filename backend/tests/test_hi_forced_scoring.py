@@ -5,6 +5,8 @@ from unittest.mock import patch
 
 import pytest
 
+from providers.base import KILL_SWITCH_SCORE
+
 
 def _make_result(hearing_impaired=False, forced=False, provider="opensubtitles"):
     from providers.base import SubtitleFormat, SubtitleResult
@@ -75,7 +77,8 @@ class TestHIPreferenceScoring:
         """exclude: HI subtitle is heavily penalized."""
         score_hi = self._score("exclude", hearing_impaired=True)
         score_non_hi = self._score("exclude", hearing_impaired=False)
-        assert score_hi == score_non_hi - 999
+        # #34: excluded candidates sit in their own band below the kill switch.
+        assert score_hi == 2 * KILL_SWITCH_SCORE + score_non_hi
 
     def test_exclude_non_hi_no_penalty(self):
         """exclude: non-HI subtitle is not penalized."""
@@ -87,7 +90,7 @@ class TestHIPreferenceScoring:
         """only: non-HI subtitle is heavily penalized."""
         score_non_hi = self._score("only", hearing_impaired=False)
         score_hi = self._score("only", hearing_impaired=True)
-        assert score_non_hi == score_hi - 999
+        assert score_non_hi == 2 * KILL_SWITCH_SCORE + score_hi
 
     def test_only_hi_no_penalty(self):
         """only: HI subtitle is not penalized."""
@@ -137,12 +140,12 @@ class TestForcedPreferenceScoring:
     def test_exclude_forced_gets_penalty(self):
         score_forced = self._score("exclude", forced=True)
         score_normal = self._score("exclude", forced=False)
-        assert score_forced == score_normal - 999
+        assert score_forced == 2 * KILL_SWITCH_SCORE + score_normal
 
     def test_only_non_forced_gets_penalty(self):
         score_normal = self._score("only", forced=False)
         score_forced = self._score("only", forced=True)
-        assert score_normal == score_forced - 999
+        assert score_normal == 2 * KILL_SWITCH_SCORE + score_forced
 
     def test_only_forced_no_penalty(self):
         score_include = self._score("include", forced=True)

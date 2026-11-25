@@ -1079,7 +1079,8 @@
       "forced_preference": "Forced preference",
       "fansub_preferred": "Preferred fansub group",
       "fansub_excluded": "Excluded fansub group",
-      "video_codec_bonus": "Video codec bonus"
+      "video_codec_bonus": "Video codec bonus",
+      "exclusion_band": "Excluded (ranks below all others)"
     }
   },
   "badges": {

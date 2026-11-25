@@ -14,7 +14,7 @@ const KNOWN_KEYS = [
   'source', 'audio_codec', 'resolution', 'video_codec', 'hearing_impaired',
   'format_bonus', 'provider_modifier', 'uploader_trust', 'hi_preference',
   'forced_preference', 'fansub_preferred', 'fansub_excluded', 'video_codec_bonus',
-  'release_group_prefer',
+  'release_group_prefer', 'exclusion_band',
 ] as const
 
 function badgeColor(score: number): 'success' | 'warning' | 'muted' {
