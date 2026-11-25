@@ -119,7 +119,7 @@ def create_glossary_entry():
     try:
         entry = create_glossary(request.get_json() or {})
     except ProfileValidationError as exc:
-        return jsonify({"error": str(exc)}), 400
+        return jsonify({"error": str(exc)}), 400  # user-facing-error
 
     return jsonify(entry), 201
 
@@ -169,9 +169,9 @@ def update_glossary_entry_endpoint(entry_id):
     try:
         entry = update_glossary(entry_id, request.get_json() or {})
     except ProfileNotFoundError as exc:
-        return jsonify({"error": str(exc)}), 404
+        return jsonify({"error": str(exc)}), 404  # user-facing-error
     except ProfileValidationError as exc:
-        return jsonify({"error": str(exc)}), 400
+        return jsonify({"error": str(exc)}), 400  # user-facing-error
 
     return jsonify(entry)
 
@@ -211,7 +211,7 @@ def delete_glossary_entry_endpoint(entry_id):
     try:
         result = delete_glossary(entry_id)
     except ProfileNotFoundError as exc:
-        return jsonify({"error": str(exc)}), 404
+        return jsonify({"error": str(exc)}), 404  # user-facing-error
 
     return jsonify(result)
 

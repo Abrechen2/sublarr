@@ -82,9 +82,9 @@ def _run_sync(
         else:
             raise ValueError(f"Unknown engine: {engine!r}")
         _update_job(job_id, "completed", result=result)
-    except Exception as exc:
+    except Exception:
         logger.exception("Sync job %s failed", job_id)
-        _update_job(job_id, "failed", error=str(exc))
+        _update_job(job_id, "failed", error="Sync failed")
     finally:
         if cleanup_ref:
             with contextlib.suppress(OSError):

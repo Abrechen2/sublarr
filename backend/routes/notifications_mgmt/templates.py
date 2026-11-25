@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import logging
+
 from flask import jsonify, request
 
 from routes.notifications_mgmt import bp
+
+logger = logging.getLogger(__name__)
 
 
 def _validate_jinja2_syntax(template_str: str) -> str | None:
@@ -16,12 +20,15 @@ def _validate_jinja2_syntax(template_str: str) -> str | None:
     if not template_str:
         return None
     try:
-        from jinja2 import Environment
+        from jinja2 import Environment, TemplateSyntaxError
 
         Environment(autoescape=True).parse(template_str)
         return None
+    except TemplateSyntaxError as e:
+        return str(e)  # user-facing-error: Jinja syntax message about the user's own template
     except Exception as e:
-        return str(e)
+        logger.warning("Template syntax check failed unexpectedly: %s", e)
+        return "template could not be parsed"
 
 
 @bp.route("/templates", methods=["GET"])
@@ -295,7 +302,8 @@ def preview_template(template_id):
         rendered_title = render_template(template["title_template"], variables)
         rendered_body = render_template(template["body_template"], variables)
     except Exception as e:
-        return jsonify({"error": f"Template rendering failed: {e}"}), 400
+        logger.warning("Template preview rendering failed: %s", e)
+        return jsonify({"error": "Template rendering failed"}), 400
 
     return jsonify(
         {

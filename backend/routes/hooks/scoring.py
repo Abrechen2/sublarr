@@ -599,7 +599,7 @@ def update_release_group_tiers():
             step = int(step)
         config = set_tier_config(data.get("tiers", []), step)
     except ValueError as e:
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": str(e)}), 400  # user-facing-error
 
     invalidate_response_cache()
     return jsonify(config)
@@ -699,7 +699,7 @@ def create_custom_rule():
         name, pattern, weight, enabled = _parse_custom_rule_payload(data)
         rule = CustomScoringRuleRepository().create_rule(name, pattern, weight, enabled)
     except ValueError as e:
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": str(e)}), 400  # user-facing-error
 
     invalidate_custom_rules_cache()
     invalidate_response_cache()
@@ -749,7 +749,7 @@ def update_custom_rule(rule_id: int):
         name, pattern, weight, enabled = _parse_custom_rule_payload(data)
         rule = CustomScoringRuleRepository().update_rule(rule_id, name, pattern, weight, enabled)
     except ValueError as e:
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": str(e)}), 400  # user-facing-error
     if rule is None:
         return jsonify({"error": "unknown rule id", "id": rule_id}), 404
 

@@ -318,7 +318,8 @@ def restore_full_backup():
                     else None
                 )
             except ValueError as exc:
-                return jsonify({"error": f"Invalid backup file: {exc}"}), 400
+                logger.warning("backup restore: unreadable config.json: %s", exc)
+                return jsonify({"error": "Invalid backup file"}), 400
             if not isinstance(manifest, dict):
                 return jsonify({"error": "manifest.json must be a JSON object"}), 400
             if config_data is not None and not isinstance(config_data, dict):
@@ -450,7 +451,8 @@ def restore_full_backup():
 
     except (json.JSONDecodeError, KeyError, ValueError, zipfile.BadZipFile) as exc:
         # ValueError covers safe_read_zip_member's bomb/ratio rejections.
-        return jsonify({"error": f"Invalid backup file: {exc}"}), 400
+        logger.warning("backup restore: invalid backup file: %s", exc)
+        return jsonify({"error": "Invalid backup file"}), 400
     finally:
         release_restore_slot()
 

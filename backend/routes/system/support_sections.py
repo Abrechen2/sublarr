@@ -62,7 +62,7 @@ def run_section(name: str, build: Callable[[], dict]) -> dict:
         return _scrub_section(build())
     except Exception as exc:  # noqa: BLE001 — one section must not abort the export
         logger.warning("support bundle: section %s unavailable: %s", name, exc, exc_info=True)
-        return {"unavailable": redact(f"{type(exc).__name__}: {exc}")}
+        return {"unavailable": redact(f"{type(exc).__name__}: {exc}")}  # user-facing-error
 
 
 # ─── database ─────────────────────────────────────────────────────────────────

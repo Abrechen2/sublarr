@@ -115,6 +115,13 @@ jobs:
           python tools/test_lint_security_invariants.py
           python tools/lint_security_invariants.py
 
+      - name: Lint (no exception text in API responses)
+        if: matrix.shard == 1
+        working-directory: ./backend
+        run: |
+          python tools/test_lint_no_exception_text_in_responses.py
+          python tools/lint_no_exception_text_in_responses.py
+
       - name: Type check (mypy)
         if: matrix.shard == 1
         working-directory: ./backend

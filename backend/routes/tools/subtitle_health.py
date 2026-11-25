@@ -170,7 +170,7 @@ def health_check():
                 results.append(
                     {
                         "file_path": fp,
-                        "error": str(exc),
+                        "error": "Health check failed",
                         "score": 0,
                         "issues": [],
                         "checks_run": 0,

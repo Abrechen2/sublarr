@@ -260,10 +260,10 @@ def run_rule(rule_id: int):
         result = execute_rule(rule_id, socketio=socketio)
         return jsonify(result)
     except CleanupBusyError as e:
-        return jsonify({"error": str(e)}), 409
+        return jsonify({"error": str(e)}), 409  # user-facing-error
     except ValueError as e:
         code = 404 if "not found" in str(e) else 400
-        return jsonify({"error": str(e)}), code
+        return jsonify({"error": str(e)}), code  # user-facing-error
     except Exception as e:
         logger.exception("Rule %d failed: %s", rule_id, e)
         return jsonify({"error": "Internal server error"}), 500
@@ -303,7 +303,7 @@ def preview_rule_endpoint(rule_id: int):
         return jsonify(result)
     except ValueError as e:
         code = 404 if "not found" in str(e) else 400
-        return jsonify({"error": str(e)}), code
+        return jsonify({"error": str(e)}), code  # user-facing-error
     except Exception as e:
         logger.exception("Preview for rule %d failed: %s", rule_id, e)
         return jsonify({"error": "Internal server error"}), 500

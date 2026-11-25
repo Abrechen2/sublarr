@@ -121,7 +121,7 @@ def complete_setup():
     try:
         settings_to_apply = apply_profile(profile)
     except ValueError as e:
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": str(e)}), 400  # user-facing-error
 
     # Persist each setting the profile prescribes
     for key, value in settings_to_apply.items():

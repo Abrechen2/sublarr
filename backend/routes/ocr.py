@@ -333,7 +333,7 @@ def batch_extract():
             _record_job(jid, {"status": "completed", "cues": cues})
         except Exception as e:
             logger.error("Batch OCR job %s failed: %s", jid, e)
-            _record_job(jid, {"status": "failed", "error": str(e)})
+            _record_job(jid, {"status": "failed", "error": "OCR failed"})
 
     _ocr_executor.submit(_run, job_id, video_path, stream_index, language)
     return jsonify({"job_id": job_id}), 202

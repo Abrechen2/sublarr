@@ -244,13 +244,13 @@ def refresh_wanted():
                 else:
                     result = scanner.scan_all()
                 emit_event("wanted_scan_complete", result)
-        except Exception as exc:
+        except Exception:
             logger.exception("wanted_scan worker crashed (series_id=%s)", series_id)
             try:
                 with app.app_context():
                     emit_event(
                         "wanted_scan_complete",
-                        {"error": str(exc), "series_id": series_id},
+                        {"error": "Wanted scan failed", "series_id": series_id},
                     )
             except Exception:
                 logger.debug("emit wanted_scan_complete itself failed", exc_info=True)
