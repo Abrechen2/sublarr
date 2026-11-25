@@ -1,8 +1,8 @@
-﻿/** System-level types â€” blacklist, history, standalone, statistics, backup, scheduler, subtitle tools, health, sync, cleanup, integrations, notifications, diff, player, support. */
+/** System-level types — blacklist, history, standalone, statistics, backup, scheduler, subtitle tools, health, sync, cleanup, integrations, notifications, diff, player, support. */
 
 import type { ProviderHealthStats } from './providers'
 
-// â”€â”€â”€ Blacklist â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Blacklist ──────────────────────────────────────────────────────────────
 
 export interface BlacklistEntry {
   id: number
@@ -13,7 +13,7 @@ export interface BlacklistEntry {
   title: string
   reason: string
   added_at: string
-  /** Plan B3 â€” optional SHA-256 or OpenSubtitles hash for provider-agnostic retry suppression */
+  /** Plan B3 — optional SHA-256 or OpenSubtitles hash for provider-agnostic retry suppression */
   file_hash?: string | null
 }
 
@@ -25,7 +25,7 @@ export interface PaginatedBlacklist {
   total_pages: number
 }
 
-// â”€â”€â”€ History â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── History ────────────────────────────────────────────────────────────────
 
 /** Advisory LLM quality verdict for a downloaded subtitle. */
 export interface AIQualityInfo {
@@ -165,7 +165,7 @@ export interface HistoryStats {
   last_7d: number
 }
 
-// â”€â”€â”€ Standalone Mode â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Standalone Mode ──────────────────────────────────────────────────────
 
 export interface WatchedFolder {
   id: number
@@ -242,7 +242,7 @@ export interface StandaloneScanResult {
   duration_seconds: number
 }
 
-// â”€â”€â”€ Statistics â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Statistics ──────────────────────────────────────────────────────────────
 
 export interface SeriesQuality {
   title: string
@@ -272,7 +272,7 @@ export interface StatisticsData {
   range: string
 }
 
-// â”€â”€â”€ Backup â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Backup ──────────────────────────────────────────────────────────────────
 
 export interface FullBackupInfo {
   filename: string
@@ -291,7 +291,7 @@ export interface LogRotationConfig {
   backup_count: number
 }
 
-// â”€â”€â”€ Scheduler Tasks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Scheduler Tasks ──────────────────────────────────────────────────────────
 
 export interface SchedulerTask {
   name: string
@@ -309,7 +309,7 @@ export interface TasksResponse {
   tasks: SchedulerTask[]
 }
 
-// â”€â”€â”€ Subtitle Editor â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Subtitle Editor ──────────────────────────────────────────────────────────
 
 export interface SubtitleContent {
   format: 'ass' | 'srt'
@@ -368,7 +368,7 @@ export interface SubtitleParseResult {
   has_quality_scores?: boolean
 }
 
-// â”€â”€â”€ Health Check & Quality â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Health Check & Quality ─────────────────────────────────────────────────
 
 export interface HealthIssue {
   check: string
@@ -404,7 +404,7 @@ export interface HealthFixResult {
   remaining_issues: number
 }
 
-// â”€â”€â”€ Comparison â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Comparison ─────────────────────────────────────────────────────────────
 
 export interface ComparisonPanel {
   path: string
@@ -418,7 +418,7 @@ export interface ComparisonResponse {
   panels: ComparisonPanel[]
 }
 
-// â”€â”€â”€ Chapter Sync â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Chapter Sync ────────────────────────────────────────────────────────────
 
 export interface Chapter {
   id: number
@@ -432,7 +432,7 @@ export interface ChapterList {
   chapters: Chapter[]
 }
 
-// â”€â”€â”€ Sync â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Sync ───────────────────────────────────────────────────────────────────
 
 export interface SyncPreviewEvent {
   index: number
@@ -484,7 +484,7 @@ export interface SyncBatchComplete {
   total: number
 }
 
-// â”€â”€â”€ Cleanup System â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Cleanup System ─────────────────────────────────────────────────────────
 
 export interface SubtitleHashEntry {
   file_path: string
@@ -501,7 +501,7 @@ export interface DuplicateGroup {
   files: SubtitleHashEntry[]
   /** Set by the backend when files in the group belong to different episodes
    * (distinct SxxEyy codes, or a mix of files with and without codes).
-   * Typically means the same subtitle was misfiled â€” deleting one leaves
+   * Typically means the same subtitle was misfiled — deleting one leaves
    * the wrong file behind; the UI surfaces a warning. */
   cross_episode?: boolean
 }
@@ -558,7 +558,7 @@ export interface OrphanedFile {
   last_modified: string
 }
 
-// â”€â”€â”€ Notification Templates â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Notification Templates ──────────────────────────────────────────────────
 
 export interface NotificationTemplate {
   id: number
@@ -607,7 +607,7 @@ export interface NotificationFilter {
   content_filters: { field: string; operator: string; value: string }[]
 }
 
-// â”€â”€â”€ External Integrations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── External Integrations ──────────────────────────────────────────────────
 
 export interface ExtendedHealthCheck {
   connection: { healthy: boolean; message: string }
@@ -690,7 +690,7 @@ export interface ExportResult {
   warnings: string[]
 }
 
-// â”€â”€â”€ Subtitle Diff â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Subtitle Diff ────────────────────────────────────────────────────────────
 
 export interface SubtitleDiffCue {
   start: number
@@ -713,7 +713,7 @@ export interface SubtitleDiffResult {
   changed: number
 }
 
-// â”€â”€â”€ Web Player â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Web Player ────────────────────────────────────────────────────────────
 
 export interface PlayerSubtitleTrack {
   path: string
@@ -730,7 +730,7 @@ export interface PlayerModalProps {
   onSeekRequest?: (seekFn: (seconds: number) => void) => void
 }
 
-// â”€â”€â”€ Support â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Support ─────────────────────────────────────────────────────────────────
 
 export interface SupportTopError {
   message: string
@@ -791,7 +791,7 @@ export interface SupportPreview {
   cached?: boolean
 }
 
-// â”€â”€â”€ Scheduler â€” Phase 5 Rollout 2 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Scheduler — Phase 5 Rollout 2 ───────────────────────────────────────────
 
 export type TriggerInterval = {
   type: 'interval'
