@@ -409,14 +409,30 @@ def delete_backup():
     return jsonify({"deleted": backup_path}), 200
 
 
-def _purge_sidecars_for_video(video_path: str) -> int:
-    """Delete all sidecar trash batches whose files live next to video_path.
+def _is_sidecar_of(original: str, video_path: str) -> bool:
+    """True when ``original`` is a sidecar of ``video_path`` (same folder and base)."""
+    from subtitle_filename import parse_combined_filename, parse_subtitle_filename
 
-    Returns the number of batches deleted.
+    if os.path.dirname(original) != os.path.dirname(video_path):
+        return False
+    stem = os.path.splitext(os.path.basename(video_path))[0]
+    parsed = parse_subtitle_filename(original)
+    if parsed is not None:
+        return parsed.base == stem
+    name = os.path.basename(original)
+    return name.startswith(stem + ".") and parse_combined_filename(original) is not None
+
+
+def _purge_sidecars_for_video(video_path: str) -> int:
+    """Delete the trashed sidecars of ``video_path`` from the sidecar trash.
+
+    Only this video's files go: a batch that also holds other episodes'
+    sidecars keeps them, with its manifest rewritten (#48). A batch left
+    empty is removed. Returns the number of batches touched.
     """
+    import json
     import shutil
 
-    video_dir = os.path.dirname(video_path)
     settings = get_settings()
     media_path = getattr(settings, "media_path", "")
     if not media_path:
@@ -432,21 +448,40 @@ def _purge_sidecars_for_video(video_path: str) -> int:
     if not os.path.isdir(trash_root):
         return 0
 
-    deleted = 0
+    from utils.atomic_write import atomic_write_bytes
+
+    touched = 0
     for entry in os.scandir(trash_root):
         if not entry.is_dir():
             continue
         manifest = _read_manifest(entry.path)
         if manifest is None:
             continue
-        # Check whether any file in the batch originated from the same directory
         files = manifest.get("files", [])
-        if any(os.path.dirname(f.get("original", "")) == video_dir for f in files):
-            try:
+        own = [f for f in files if _is_sidecar_of(f.get("original", ""), video_path)]
+        if not own:
+            continue
+        rest = [f for f in files if f not in own]
+        try:
+            if not rest:
                 shutil.rmtree(entry.path)
-                logger.info("Purged sidecar batch %s (linked to %s)", entry.name, video_path)
-                deleted += 1
-            except OSError as exc:
-                logger.warning("Failed to purge sidecar batch %s: %s", entry.name, exc)
+            else:
+                for f in own:
+                    trashed = f.get("trashed", "")
+                    # The manifest sits on a user-writable share: never delete
+                    # outside the trash, whatever it claims.
+                    if trashed and is_safe_path(trashed, trash_root) and os.path.exists(trashed):
+                        os.remove(trashed)
+                kept = {**manifest, "files": rest}
+                atomic_write_bytes(
+                    os.path.join(entry.path, "manifest.json"),
+                    json.dumps(kept, indent=2).encode("utf-8"),
+                )
+            logger.info(
+                "Purged %d sidecar(s) of %s from trash batch %s", len(own), video_path, entry.name
+            )
+            touched += 1
+        except OSError as exc:
+            logger.warning("Failed to purge sidecar batch %s: %s", entry.name, exc)
 
-    return deleted
+    return touched
