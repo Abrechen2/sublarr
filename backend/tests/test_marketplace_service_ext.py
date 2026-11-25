@@ -75,10 +75,11 @@ def test_fetch_registry_success():
     from services.marketplace import PluginMarketplace
 
     marketplace = PluginMarketplace()
-    with patch("services.marketplace.requests.get") as mock_get:
+    with patch("requests.get") as mock_get:
         resp = MagicMock()
         resp.json.return_value = FAKE_REGISTRY
         resp.raise_for_status = MagicMock()
+        resp.is_redirect = False
         mock_get.return_value = resp
         result = marketplace.fetch_registry()
     assert "plugins" in result
@@ -101,7 +102,7 @@ def test_fetch_registry_failure():
 
     marketplace = PluginMarketplace()
     with (
-        patch("services.marketplace.requests.get", side_effect=Exception("network error")),
+        patch("requests.get", side_effect=Exception("network error")),
         pytest.raises(RuntimeError, match="Failed to fetch"),
     ):
         marketplace.fetch_registry()
@@ -117,6 +118,26 @@ def test_fetch_registry_blocked_url():
         pytest.raises(RuntimeError, match="blocked for security"),
     ):
         marketplace.fetch_registry()
+
+
+def test_fetch_registry_refuses_a_redirect_to_a_blocked_host():
+    """The registry fetch re-checks redirect targets (code check 2026-11-05, N-2)."""
+    from services.marketplace import PluginMarketplace
+
+    bounce = MagicMock()
+    bounce.is_redirect = True
+    bounce.headers = {"Location": "http://169.254.169.254/latest/meta-data/"}
+    marketplace = PluginMarketplace(registry_url="https://github.com/registry.json")
+    with (
+        patch(
+            "security_utils.validate_service_url", side_effect=[(True, None), (False, "metadata")]
+        ),
+        patch("requests.get", return_value=bounce) as get,
+        pytest.raises(RuntimeError, match="blocked for security"),
+    ):
+        marketplace.fetch_registry()
+    assert get.call_count == 1
+    assert get.call_args.kwargs["allow_redirects"] is False
 
 
 # ---------------------------------------------------------------------------
