@@ -295,6 +295,38 @@ _EXEMPT_PATHS = {"/api/v1/health"}
 _EXEMPT_PREFIXES = ("/api/v1/auth/", "/socket.io/")
 
 
+def _refuse_before_setup():
+    """403 for a non-local request while the first setup is not done (#79).
+
+    Until then nothing protects the API: logs, config and library were open
+    to anyone who reached the port first. The local network keeps working
+    (the setup wizard runs there), the setup itself stays open through the
+    exempt /api/v1/auth/* with the console token, and API-key clients still
+    pass. Once the setup is done (password set, or auth deliberately
+    disabled) this never refuses.
+    """
+    if request_is_local_network():
+        return None
+    try:
+        configured = is_ui_auth_configured()
+    except Exception as exc:  # noqa: BLE001 — fail closed, the setup stays reachable
+        logger.warning("Cannot tell whether UI auth is set up (%s); refusing remote API", exc)
+        configured = False
+    if configured or _has_valid_api_key():
+        return None
+    from proxy_auth import request_has_valid_proxy_auth
+
+    if request_has_valid_proxy_auth():
+        return None
+    return jsonify(
+        {
+            "error": "Finish the Sublarr setup first (from the local network or with the "
+            "one-time setup token).",
+            "setup_required": True,
+        }
+    ), 403
+
+
 def init_ui_auth(app):
     try:
         app.config["SECRET_KEY"] = _get_or_create_secret_key()
@@ -365,7 +397,7 @@ def init_ui_auth(app):
         if not path.startswith("/api/"):
             return None
         if not is_ui_auth_enabled():
-            return None
+            return _refuse_before_setup()
         if has_valid_session():
             return None
         if _has_valid_api_key():
