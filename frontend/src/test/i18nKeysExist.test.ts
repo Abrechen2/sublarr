@@ -93,4 +93,38 @@ describe('i18n catalogs', () => {
     }
     expect(missing).toEqual([])
   })
+
+  it('every key with a German inline default exists in en (GitHub #231)', () => {
+    // A German default shows up verbatim in the English UI when en lacks the
+    // key — exactly how #231 put German texts into the English interface.
+    const missing: string[] = []
+    const useRe = /const\s*\{\s*t(?:\s*:\s*(\w+))?\s*\}\s*=\s*useTranslation\(\s*(?:'([\w-]+)'|\[\s*'([\w-]+)')?/g
+    for (const file of sourceFiles(SRC)) {
+      const src = readFileSync(file, 'utf-8')
+      const aliases = new Map<string, Set<string>>()
+      for (const m of src.matchAll(useRe)) {
+        const alias = m[1] ?? 't'
+        if (!aliases.has(alias)) aliases.set(alias, new Set())
+        aliases.get(alias)!.add(m[2] ?? m[3] ?? 'common')
+      }
+      for (const [alias, namespaces] of aliases) {
+        const callRe = new RegExp(`(?<![\\w.])${alias}\\(\\s*'([\\w.:-]+)'\\s*,\\s*(['"\`])((?:(?!\\2).)*)\\2`, 'gs')
+        for (const m of src.matchAll(callRe)) {
+          if (!/[äöüÄÖÜß]/.test(m[3])) continue
+          let key = m[1]
+          let candidates = [...namespaces]
+          if (key.includes(':')) {
+            const [ns, rest] = key.split(':', 2)
+            candidates = [ns]
+            key = rest
+          }
+          if (!candidates.some((ns) => has(en, ns, key))) {
+            const line = src.slice(0, m.index).split('\n').length
+            missing.push(`${relative(SRC, file)}:${line} ${candidates.join('|')}:${key}`)
+          }
+        }
+      }
+    }
+    expect(missing).toEqual([])
+  })
 })

@@ -54,3 +54,48 @@ def test_an_absent_setting_falls_back_to_its_default(missing):
     del values[missing]
     reason = skip_srt_reason(SimpleNamespace(**values), ass_had_results=False)
     assert reason is not None, "both defaults are True, so an anime-only skip is expected"
+
+
+# The helper alone is not enough: #206 was about the SRT step never running.
+# Drive the real step sequence and assert Step 3 is reached on a mixed library
+# when Steps 1+2 found no ASS.
+def _run_steps(monkeypatch, *, anime_only: bool):
+    from unittest.mock import MagicMock
+
+    import wanted_search.process as process
+
+    calls: list[str] = []
+    monkeypatch.setattr(process, "abort_requested", lambda: False)
+    monkeypatch.setattr(process, "_try_target_ass_direct", lambda ctx: None)
+
+    def no_source_ass(ctx):
+        ctx["ass_had_results"] = False
+
+    monkeypatch.setattr(process, "_try_source_ass_translation", no_source_ass)
+    monkeypatch.setattr(
+        process, "_try_target_srt_direct", lambda ctx: calls.append("srt") or {"status": "found"}
+    )
+    monkeypatch.setattr("services.series_format.get_series_format_requirement", lambda key: "any")
+    settings = SimpleNamespace(wanted_skip_srt_on_no_ass=True, wanted_anime_only=anime_only)
+    ctx = {
+        "item": {"id": 1, "sonarr_series_id": 5},
+        "item_id": 1,
+        "settings": settings,
+        "ass_had_results": False,
+        "auto_translate": True,
+        "manager": MagicMock(),
+        # Stop before Step 5 (extraction/translation) — only Steps 1-4 matter.
+        "dry_run": True,
+    }
+    return calls, process._run_search_steps(ctx)
+
+
+def test_mixed_library_reaches_the_srt_step(monkeypatch):
+    calls, result = _run_steps(monkeypatch, anime_only=False)
+    assert calls == ["srt"]
+    assert result == {"status": "found"}
+
+
+def test_anime_only_library_skips_the_srt_step(monkeypatch):
+    calls, _ = _run_steps(monkeypatch, anime_only=True)
+    assert calls == []

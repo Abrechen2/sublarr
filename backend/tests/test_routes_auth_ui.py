@@ -275,3 +275,30 @@ def test_toggle_disable_with_session(app, monkeypatch):
         r = client.post("/api/v1/auth/toggle", json={"enabled": False})
         assert r.status_code == 200
         assert saved.get("ui_auth_enabled") == "false"
+
+
+# GitHub #149: the minimum was 12 and users could not set a normal password.
+# The boundary is 8: seven characters are refused, eight are accepted, on
+# both the first setup and the password change.
+@pytest.mark.parametrize(("password", "status"), [("1234567", 400), ("12345678", 200)])
+def test_setup_password_minimum_is_eight(app, monkeypatch, password, status):
+    monkeypatch.setattr(ui_auth, "is_ui_auth_configured", lambda: False)
+    with app.test_client() as client:
+        r = client.post("/api/v1/auth/setup", json={"action": "set_password", "password": password})
+        assert r.status_code == status
+
+
+@pytest.mark.parametrize(("password", "status"), [("1234567", 400), ("12345678", 200)])
+def test_change_password_minimum_is_eight(app, monkeypatch, password, status):
+    pw_hash = ui_auth.hash_password("old")
+    monkeypatch.setattr(
+        ui_auth, "_get_config_entry", lambda k: pw_hash if k == "ui_password_hash" else "true"
+    )
+    with app.test_client() as client:
+        with client.session_transaction() as sess:
+            grant_ui_session(sess)
+        r = client.post(
+            "/api/v1/auth/change-password",
+            json={"current_password": "old", "new_password": password},
+        )
+        assert r.status_code == status
