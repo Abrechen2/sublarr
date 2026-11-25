@@ -5,6 +5,69 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.21.3] - 2026-11-25
+
+### Security
+- **The API was open to everyone before the first setup** — Until UI auth was
+  set up, every API request went through, so logs, settings and the library
+  were readable by anyone who reached the port first. Until the setup is done,
+  requests from outside the local network (or through a reverse proxy) now get
+  403; the setup itself, `/health`, API-key clients and trusted proxy auth stay
+  open.
+- **Catalog providers could reach local files and the LAN** — Optional catalog
+  bundles fetched URLs without the download guard: `file://`, loopback, LAN
+  and metadata addresses were reachable, including through redirects. Every
+  request, redirect and socket of bundle code is now checked. Behind an HTTP
+  proxy, catalog requests to host names are refused, because the proxy
+  resolves them out of Sublarr's sight.
+- **No exception text in API errors** — Error responses no longer carry raw
+  exception text (paths, SQL, URLs that may hold API keys); the detail goes to
+  the log and the response names a request id.
+- **Plugin registry redirects are checked** — The registry fetch re-checks
+  every redirect target.
+- New CI checks refuse SQL built from strings, shell execution and exception
+  text in responses.
+
+### Fixed
+- **A webhook and the wanted search finishing the same item broke the
+  request** — Both queued the same auto-sync; the second insert failed and
+  left the database session unusable, so deleting the wanted item, restoring
+  its status and the notification all failed. The insert is now race-safe,
+  and every failed write rolls back before the error is passed on.
+- **Wanted search ignored the profile's source language** — The steps that
+  download a source subtitle and translate it used the global source language;
+  a de→en profile on an en→de install skipped them entirely. They now follow
+  the profile, like the rest of the translation path.
+- **Remux backups**
+  - A second backup in the same second was deleted by the next retention run.
+  - Restoring a backup could overwrite an unrelated video with the same file
+    name in another folder. Backups now record their original path and restore
+    only onto it; backups made before this version show no restore target.
+  - Restoring one episode deleted the trashed subtitles of every other episode
+    in the folder; now only its own go.
+- **An excluded subtitle could still win** — "Exclude"/"only" for HI and
+  forced subtitles subtracted 999 points, which a large provider modifier
+  could outweigh. Excluded results now always rank below all others.
+- **Scoring saves were half-applied on bad values** — Preset import, scoring
+  weights and provider modifiers now check value ranges and save all or
+  nothing; oversized numbers give a clear 400 instead of a 500.
+- **A forced/HI download hid a machine-translated main subtitle**, so the
+  search for an original stopped.
+- **Library filters** — "Anime" now uses Sonarr's own classification and
+  "Low score" the open upgrade candidates, instead of matching almost every
+  series and measuring video-file coverage.
+- **Editor validation** — Plain text or an empty file showed "Valid (0
+  events)"; the warning is now shown.
+- **ASS common fixes** — Long-line wrap kept the text but dropped override
+  tags and inserted raw line breaks; short-line merge merged overlapping
+  events across layers and styles. Both now keep tags, use `\N` and merge
+  only consecutive events of the same style.
+- **Titrari offered like/comment links as subtitles**; only real subtitle
+  links are results now.
+- **Catalog archives with the same file name in several folders** picked the
+  wrong file; the pinned member is matched on its full path.
+- Profile source languages must be language codes.
+
 ## [1.21.2] - 2026-11-20
 
 ### Fixed
