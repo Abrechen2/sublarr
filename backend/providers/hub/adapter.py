@@ -33,6 +33,7 @@ from providers.base import (
     VideoQuery,
 )
 from providers.hub.languages import request_payloads, result_language
+from providers.hub.net_guard import outbound_guard
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +63,11 @@ _ANY_LANGUAGE_LIMIT = 8
 # Bundle error classes that mean "slow down" or "your account is the problem".
 _RATE_LIMIT_ERRORS = {"RateLimited", "APIThrottled"}
 _AUTH_ERRORS = {"AccountLoginFailed", "AccountRequired"}
+# Bundles that talk to a server the operator runs, and the settings holding
+# its address. Only the hosts typed into these settings may be private/LAN
+# addresses (Forgejo #54). Reviewed per bundle: a setting merely named *_url
+# in another bundle grants nothing.
+_OPERATOR_URL_SETTINGS: dict[str, tuple[str, ...]] = {"subsarr": ("base_url",)}
 
 
 def config_key(hub_id: str, prop: str) -> str:
@@ -219,6 +225,17 @@ class HubProvider(SubtitleProvider):
         props = (self.manifest.get("config_schema") or {}).get("properties") or {}
         return {key: _coerce(self.config.get(key), schema) for key, schema in props.items()}
 
+    def _network_guard(self):
+        """The download policy around every call into bundle code (Forgejo #54).
+
+        Bundles reach public addresses only. A bundle listed in
+        ``_OPERATOR_URL_SETTINGS`` may also reach the host(s) the operator
+        configured there (Subsarr's ``base_url``) — those hosts, not the LAN.
+        """
+        settings = _OPERATOR_URL_SETTINGS.get(self.hub_id, ())
+        urls = [str(self.config.get(key) or "").strip() for key in settings]
+        return outbound_guard(self.name, operator_urls=[url for url in urls if url])
+
     def _missing_required(self) -> list[str]:
         required = (self.manifest.get("config_schema") or {}).get("required") or []
         return [key for key in required if not str(self.config.get(key) or "").strip()]
@@ -228,7 +245,8 @@ class HubProvider(SubtitleProvider):
         if missing:
             logger.info("%s: not active, missing %s", self.name, ", ".join(missing))
             return
-        self._impl = self.impl_class()
+        with self._network_guard():
+            self._impl = self.impl_class()
         self.session = self._impl
 
     def terminate(self):
@@ -253,9 +271,12 @@ class HubProvider(SubtitleProvider):
         if not languages:
             return []
         try:
-            candidates = self._impl.search(
-                video=video_from_query(query), languages=languages, config=self._bundle_config()
-            )
+            with self._network_guard():
+                candidates = self._impl.search(
+                    video=video_from_query(query),
+                    languages=languages,
+                    config=self._bundle_config(),
+                )
         except Exception as exc:  # noqa: BLE001 — every bundle error maps to a provider error
             raise translate_error(exc) from exc
 
@@ -339,7 +360,8 @@ class HubProvider(SubtitleProvider):
         language = result.provider_data.get("language") or {}
         config = self._bundle_config()
         try:
-            content = self._impl.download(payload, language, config)
+            with self._network_guard():
+                content = self._impl.download(payload, language, config)
         except Exception as exc:  # noqa: BLE001
             raise translate_error(exc) from exc
 
@@ -413,7 +435,8 @@ class HubProvider(SubtitleProvider):
         ):
             names = [name for name, _ in files]
             try:
-                decision = self._impl.select_archive_member(payload, language, names, config)
+                with self._network_guard():
+                    decision = self._impl.select_archive_member(payload, language, names, config)
             except Exception as exc:  # noqa: BLE001
                 raise translate_error(exc) from exc
             if not isinstance(decision, dict):

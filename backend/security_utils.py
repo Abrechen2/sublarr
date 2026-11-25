@@ -407,6 +407,61 @@ def _check_ip_address(addr, label: str, *, allow_loopback: bool = False) -> tupl
     return True, None
 
 
+# Carrier-grade NAT / Tailscale range: not ``is_private`` in Python, but never
+# a public subtitle site either.
+_SHARED_ADDRESS_SPACE = ipaddress.ip_network("100.64.0.0/10")
+
+
+def check_hub_peer_ip(addr, label: str, *, allow_private: bool = False) -> tuple[bool, str | None]:
+    """Whether a catalog (Provider Hub) bundle may open a connection to ``addr``.
+
+    Loopback, link-local, metadata, unspecified, multicast and reserved
+    addresses are always refused. Private/LAN and shared (100.64/10) ranges
+    are refused too unless ``allow_private`` — a bundle whose server address
+    the operator configures (Subsarr), the same class as the self-hosted
+    providers in ``validate_download_url``.
+    """
+    if isinstance(addr, ipaddress.IPv6Address) and addr.ipv4_mapped is not None:
+        addr = addr.ipv4_mapped
+    ok, reason = _check_ip_address(addr, label)
+    if not ok:
+        return ok, reason
+    if addr.is_multicast or addr.is_reserved:
+        return False, f"Multicast/reserved addresses are not allowed: {label!r}"
+    if not allow_private and (addr.is_private or addr in _SHARED_ADDRESS_SPACE):
+        return False, f"Private/LAN addresses are not allowed: {label!r}"
+    return True, None
+
+
+def validate_hub_url(url: str, *, allow_private: bool = False) -> tuple[bool, str | None]:
+    """The download-URL policy for catalog bundles, checked before each request.
+
+    Only http/https; metadata host names and literal addresses are checked
+    with ``check_hub_peer_ip``. Host names are not resolved here: the
+    connection guard checks the address actually connected to, which also
+    covers names that resolve to loopback and DNS rebinding.
+    """
+    if not url:
+        return False, "Download URL must not be empty"
+    try:
+        parsed = urllib.parse.urlparse(url)
+    except Exception:
+        return False, "URL could not be parsed"
+    if parsed.scheme not in _ALLOWED_SERVICE_SCHEMES:
+        return False, f"Invalid scheme {parsed.scheme!r} — only http/https are allowed"
+    host = parsed.hostname
+    if not host:
+        return False, "URL has no hostname"
+    if host.lower() in _BLOCKED_METADATA_HOSTS:
+        return False, f"Blocked metadata host: {host!r}"
+    if host.lower() == "localhost" or host.lower().endswith(".localhost"):
+        return False, f"Loopback addresses are not allowed: {host!r}"
+    addr = _normalise_to_ip(host)
+    if addr is not None:
+        return check_hub_peer_ip(addr, host, allow_private=allow_private)
+    return True, None
+
+
 def validate_git_url(url: str) -> None:
     """Validate that a Git repository URL is safe to clone.
 
