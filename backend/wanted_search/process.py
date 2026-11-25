@@ -4,6 +4,7 @@ import contextlib
 import copy
 import logging
 import os
+import re
 
 import decision_log
 import provider_reach
@@ -36,6 +37,9 @@ from wanted_search.post_processor import (
 logger = logging.getLogger(__name__)
 
 
+_LANG_TAG_RE = re.compile(r"^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?\Z")
+
+
 def _item_source_language(item: dict, settings) -> str:
     """The source language this item translates from (#80).
 
@@ -54,7 +58,14 @@ def _item_source_language(item: dict, settings) -> str:
             exc,
         )
         profile = {}
-    return profile.get("source_language") or getattr(settings, "source_language", "") or ""
+    global_source = getattr(settings, "source_language", "") or ""
+    code = profile.get("source_language") or ""
+    # The code becomes part of a file name (Steps 2/4); anything that is not
+    # a plain language tag falls back to the global source.
+    if code and not _LANG_TAG_RE.match(code):
+        logger.warning("Wanted %s: ignoring invalid profile source %r", item.get("id"), code)
+        code = ""
+    return code or global_source
 
 
 def _ctx_source_language(ctx: dict) -> str:
