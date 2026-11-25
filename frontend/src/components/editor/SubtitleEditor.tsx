@@ -13,6 +13,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
+import { VALIDATION_TONE_CLASSES, validationStatus } from './validationStatus'
 import CodeMirror, { type ReactCodeMirrorRef } from '@uiw/react-codemirror'
 import { keymap } from '@codemirror/view'
 import { EditorView } from '@codemirror/view'
@@ -277,18 +278,10 @@ export function SubtitleEditor({
         {validationResult && (
           <span
             className={`rounded px-2 py-0.5 text-xs font-medium ${
-              validationResult.valid
-                ? 'bg-emerald-500/20 text-emerald-400'
-                : 'bg-red-500/20 text-red-400'
+              VALIDATION_TONE_CLASSES[validationStatus(validationResult, t).tone].badge
             }`}
           >
-            {validationResult.valid
-              ? `Valid (${validationResult.event_count ?? 0} events${
-                  validationResult.style_count
-                    ? `, ${validationResult.style_count} styles`
-                    : ''
-                })`
-              : `Invalid: ${validationResult.error ?? 'unknown error'}`}
+            {validationStatus(validationResult, t).label}
           </span>
         )}
 
@@ -389,10 +382,14 @@ export function SubtitleEditor({
         {!isValidating && validationResult && (
           <span
             className={`text-xs ${
-              validationResult.valid ? 'text-emerald-400' : 'text-red-400'
+              VALIDATION_TONE_CLASSES[validationStatus(validationResult, t).tone].text
             }`}
           >
-            {validationResult.valid ? t('valid') : t('invalid')}
+            {validationStatus(validationResult, t).tone === 'warn'
+              ? t('valid_with_warnings')
+              : validationResult.valid
+                ? t('valid')
+                : t('invalid')}
           </span>
         )}
 

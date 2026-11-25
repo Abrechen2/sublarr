@@ -271,5 +271,9 @@
     "gap_tooltip": "Enger Abstand (< 80 ms) zum nächsten Cue",
     "overlap_tooltip": "Überlappung mit nächstem Cue",
     "cps_tooltip": "Lesegeschwindigkeit: {{cps}} Zeichen/s ({{chars}} Zeichen) — evtl. zu schnell zum Lesen"
-  }
+  },
+  "valid_with_warnings": "Gültig mit Warnung",
+  "validation_no_events": "Warnung: keine Untertitelzeilen gefunden",
+  "validation_ok": "Gültig ({{events}} Zeilen, {{styles}} Stile)",
+  "validation_invalid": "Ungültig: {{error}}"
 }
