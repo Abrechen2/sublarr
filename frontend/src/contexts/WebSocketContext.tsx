@@ -11,6 +11,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { io, type Socket } from 'socket.io-client'
 import { withBase } from '@/basePath'
+import { attachReconnect } from './socketReconnect'
 
 const WebSocketContext = createContext<Socket | null>(null)
 
@@ -37,8 +38,10 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
       auth: apikey ? { apikey } : undefined,
     })
     setSocket(socketRef.current)
+    const stopReconnect = attachReconnect(socketRef.current)
 
     return () => {
+      stopReconnect()
       socketRef.current?.disconnect()
       socketRef.current = null
       setSocket(null)

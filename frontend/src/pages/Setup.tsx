@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { Lock, Unlock, Eye, EyeOff } from 'lucide-react'
 import { setupAuth } from '@/api/client'
 import { toast } from '@/components/shared/Toast'
+import { notifyAuthChanged } from '@/contexts/socketReconnect'
 
 export function SetupPage() {
   const { t } = useTranslation('onboarding')
@@ -22,6 +23,7 @@ export function SetupPage() {
     mutationFn: setupAuth,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['auth-status'] })
+      notifyAuthChanged()
       navigate('/')
     },
     onError: (err: unknown) => {
@@ -35,6 +37,7 @@ export function SetupPage() {
       // "Already configured" means auth is already set up (e.g. AUTH_ENABLED=false in env) — just navigate
       if (msg.includes('Already configured')) {
         queryClient.invalidateQueries({ queryKey: ['auth-status'] })
+        notifyAuthChanged()
         navigate('/')
         return
       }

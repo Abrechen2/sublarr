@@ -5,6 +5,7 @@ import { Lock, Eye, EyeOff } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { getAuthStatus, login } from '@/api/client'
 import { toast } from '@/components/shared/Toast'
+import { notifyAuthChanged } from '@/contexts/socketReconnect'
 
 export function LoginPage() {
   const { t } = useTranslation('common')
@@ -23,6 +24,7 @@ export function LoginPage() {
     mutationFn: () => login(password),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['auth-status'] })
+      notifyAuthChanged()
       navigate(from, { replace: true })
     },
     onError: () => toast(t('login.invalid_password'), 'error'),
