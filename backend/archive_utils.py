@@ -60,6 +60,18 @@ def _plain_basename(path: str) -> str:
     return cleaned
 
 
+def _plain_member_path(path: str) -> str:
+    """An archive member's full path, cleaned like ``_plain_basename`` per folder.
+
+    Two members can share a basename in different folders (``en/x.srt`` and
+    ``de/x.srt``); a caller that selects a member by name needs the whole path
+    to tell them apart. Empty, ``.`` and ``..`` components are dropped, so the
+    result is a label for matching, never a path to write.
+    """
+    parts = [_plain_basename(part) for part in path.replace("\\", "/").split("/")]
+    return "/".join(part for part in parts if part and part not in (".", ".."))
+
+
 def extract_subtitles_from_zip(
     data: bytes,
     subtitle_exts: frozenset[str] = _SUBTITLE_EXTENSIONS,
@@ -70,8 +82,9 @@ def extract_subtitles_from_zip(
     Args:
         data: Raw ZIP archive bytes.
         subtitle_exts: Allowed subtitle file extensions (with leading dot).
-        raw_names: Return names via ``_plain_basename`` (non-Latin letters kept)
-            instead of ``secure_filename``. Only for callers that never use the
+        raw_names: Return full member paths via ``_plain_member_path``
+            (folders kept, non-Latin letters kept) instead of a
+            ``secure_filename`` basename. Only for callers that never use the
             name as a filesystem path.
 
     Returns:
@@ -112,10 +125,10 @@ def extract_subtitles_from_zip(
                 if info.filename.endswith("/"):
                     continue
                 # Strip any path components + sanitize for disk write (ZIP slip + P2)
-                basename = (_plain_basename if raw_names else _safe_basename)(info.filename)
+                basename = (_plain_member_path if raw_names else _safe_basename)(info.filename)
                 if not basename:
                     continue
-                ext = os.path.splitext(basename)[1].lower()
+                ext = os.path.splitext(os.path.basename(basename))[1].lower()
                 if ext not in subtitle_exts:
                     continue
                 results.append((basename, zf.read(info.filename)))
@@ -258,10 +271,10 @@ def extract_subtitles_from_rar(
     try:
         with rarfile.RarFile(io.BytesIO(data)) as rf:
             for info in rf.infolist():
-                basename = (_plain_basename if raw_names else _safe_basename)(info.filename)
+                basename = (_plain_member_path if raw_names else _safe_basename)(info.filename)
                 if not basename:
                     continue
-                ext = os.path.splitext(basename)[1].lower()
+                ext = os.path.splitext(os.path.basename(basename))[1].lower()
                 if ext not in subtitle_exts:
                     continue
                 results.append((basename, rf.read(info.filename)))

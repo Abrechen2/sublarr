@@ -387,11 +387,7 @@ class HubProvider(SubtitleProvider):
         return name, data
 
     def _from_archive(self, content, result, payload, language, config) -> tuple[str, bytes]:
-        from archive_utils import (
-            _plain_basename,
-            extract_subtitles_from_rar,
-            extract_subtitles_from_zip,
-        )
+        from archive_utils import extract_subtitles_from_rar, extract_subtitles_from_zip
 
         raw = _b64(content["archive_b64"], content.get("archive_sha256"), self.name)
         try:
@@ -427,11 +423,7 @@ class HubProvider(SubtitleProvider):
             if decision.get("decision") == "pin":
                 member = decision.get("member")
         if member:
-            wanted = _plain_basename(str(member))
-            for name, data in files:
-                if name == wanted:
-                    return name, data
-            raise ProviderError(f"{self.name} archive member {wanted!r} is missing")
+            return _pinned_member(files, str(member), self.name)
         return _pick_member(files, result, self.name)
 
 
@@ -469,6 +461,27 @@ def _b64(text, expected_sha256, provider_name: str) -> bytes:
     return data
 
 
+def _pinned_member(files, member: str, provider_name: str) -> tuple[str, bytes]:
+    """The archive file a bundle pinned, matched on its full member path.
+
+    ``files`` carry full member paths, so ``en/x.srt`` and ``de/x.srt`` stay
+    apart. A pin without a folder (a bundle that lists only bare names) may
+    still match a member inside a folder, but only when that basename is
+    unique; otherwise the choice is ambiguous and refused rather than guessed.
+    """
+    from archive_utils import _plain_basename, _plain_member_path
+
+    wanted = _plain_member_path(member)
+    candidates = [(name, data) for name, data in files if name == wanted]
+    if not candidates and "/" not in wanted:
+        candidates = [(name, data) for name, data in files if _plain_basename(name) == wanted]
+    if len(candidates) > 1:
+        raise ProviderError(f"{provider_name} archive member {wanted!r} is ambiguous")
+    if not candidates:
+        raise ProviderError(f"{provider_name} archive member {wanted!r} is missing")
+    return candidates[0]
+
+
 def _pick_member(files, result: SubtitleResult, provider_name: str) -> tuple[str, bytes]:
     """The archive file for the wanted episode — never an arbitrary one from a pack."""
     from providers.subdl import _pick_best_subtitle
@@ -481,7 +494,11 @@ def _pick_member(files, result: SubtitleResult, provider_name: str) -> tuple[str
         episodes=list(ctx.get("episodes") or []),
         absolute_episode=ctx.get("absolute_episode"),
     )
-    picked = _pick_best_subtitle(files, query, exact_episode=len(files) == 1)
+    from archive_utils import _plain_basename
+
+    # The episode pick reads file names, not folder names.
+    named = [(_plain_basename(name), data) for name, data in files]
+    picked = _pick_best_subtitle(named, query, exact_episode=len(named) == 1)
     if picked is None:
         raise ProviderError(f"{provider_name} archive has no file for this episode")
     return picked

@@ -97,6 +97,14 @@ class FakeProvider:
             data = _zip({"Show - S01E01.srt": b"wrong", "Show - S01E02.ass": b"[Script Info]",
                          "Show - S01E03.srt": b"wrong"})
             return {"archive_b64": base64.b64encode(data).decode()}
+        if mode in ("nested", "nested_bare", "nested_unique"):
+            files = {"wrong/Show.S01E02.srt": b"wrong", "correct/Show.S01E02.srt": body}
+            member = {"nested": "correct/Show.S01E02.srt", "nested_bare": "Show.S01E02.srt",
+                      "nested_unique": "Show.S01E02.de.srt"}[mode]
+            if mode == "nested_unique":
+                files = {"en/Show.S01E02.en.srt": b"wrong", "de/Show.S01E02.de.srt": body}
+            data = _zip(files)
+            return {"archive_b64": base64.b64encode(data).decode(), "member": member}
         if mode == "select":
             data = _zip({"简体 [en].srt": b"en", "节目 [de] 最终.srt": body})
             return {"archive_b64": base64.b64encode(data).decode(), "select_member": True}
@@ -344,6 +352,30 @@ def test_the_bundle_pins_the_archive_member_in_the_wanted_language(bundle):
     provider = _provider(bundle)
     result = provider.search(_episode_query())[0]
     result.provider_data["payload"] = {"mode": "select"}
+    assert provider.download(result) == SRT
+
+
+def test_a_pinned_member_keeps_its_full_archive_path(bundle):
+    """Two members with one basename in different folders: the pinned one wins (#55)."""
+    provider = _provider(bundle)
+    result = provider.search(_episode_query())[0]
+    result.provider_data["payload"] = {"mode": "nested"}
+    assert provider.download(result) == SRT
+    assert result.filename == "Show.S01E02.srt"
+
+
+def test_a_bare_pin_matching_several_folders_is_refused(bundle):
+    provider = _provider(bundle)
+    result = provider.search(_episode_query())[0]
+    result.provider_data["payload"] = {"mode": "nested_bare"}
+    with pytest.raises(ProviderError, match="ambiguous"):
+        provider.download(result)
+
+
+def test_a_bare_pin_still_finds_a_unique_member_in_a_folder(bundle):
+    provider = _provider(bundle)
+    result = provider.search(_episode_query())[0]
+    result.provider_data["payload"] = {"mode": "nested_unique"}
     assert provider.download(result) == SRT
 
 
