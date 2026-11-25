@@ -4,7 +4,6 @@ import contextlib
 import copy
 import logging
 import os
-import re
 
 import decision_log
 import provider_reach
@@ -23,6 +22,7 @@ from error_handler import DuplicateSubtitleError
 from providers import get_provider_manager
 from providers.base import SubtitleFormat
 from services.media_ids import movie_key_for_item, series_key_for_item
+from services.profile_service import normalize_source_tag
 from services.scheduler.cancellation import abort_requested
 from translator.errors import TranslationAbortedError
 from upgrade_scorer import should_upgrade
@@ -35,9 +35,6 @@ from wanted_search.post_processor import (
 )
 
 logger = logging.getLogger(__name__)
-
-
-_LANG_TAG_RE = re.compile(r"^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?\Z")
 
 
 def _item_source_language(item: dict, settings) -> str:
@@ -59,12 +56,12 @@ def _item_source_language(item: dict, settings) -> str:
         )
         profile = {}
     global_source = getattr(settings, "source_language", "") or ""
-    code = profile.get("source_language") or ""
+    raw = profile.get("source_language") or ""
     # The code becomes part of a file name (Steps 2/4); anything that is not
     # a plain language tag falls back to the global source.
-    if code and not _LANG_TAG_RE.match(code):
-        logger.warning("Wanted %s: ignoring invalid profile source %r", item.get("id"), code)
-        code = ""
+    code = normalize_source_tag(raw) or ""
+    if raw and not code:
+        logger.warning("Wanted %s: ignoring invalid profile source %r", item.get("id"), raw)
     return code or global_source
 
 

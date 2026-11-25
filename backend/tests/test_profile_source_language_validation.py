@@ -33,3 +33,16 @@ def test_create_defaults_to_en():
 def test_update_refuses_a_bad_source():
     with pytest.raises(ProfileValidationError, match="source_language"):
         validate_update_profile_fields({"source_language": "../x"})
+
+
+@pytest.mark.parametrize(
+    ("raw", "clean"), [("EN", "en"), (" de ", "de"), ("PT-BR", "pt-BR"), ("Ja", "ja")]
+)
+def test_create_normalises_case_and_spaces(raw, clean):
+    # A profile saved before the validation may hold "EN"; refusing it would
+    # block every later save of that profile from the UI.
+    assert validate_create_profile_data({**_BASE, "source_language": raw})["source_lang"] == clean
+
+
+def test_update_normalises_a_legacy_upper_case_source():
+    assert validate_update_profile_fields({"source_language": "EN"})["source_language"] == "en"

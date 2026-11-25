@@ -51,6 +51,16 @@ class TestItemSourceLanguage:
         ):
             assert _item_source_language({"id": 1}, settings) == "de"
 
+    def test_upper_case_profile_source_is_normalised(self):
+        from wanted_search.process import _item_source_language
+
+        settings = MagicMock(source_language="en")
+        with patch(
+            "services.mt_provisional._resolve_profile_for_item",
+            return_value={"source_language": "DE"},
+        ):
+            assert _item_source_language({"id": 1}, settings) == "de"
+
     def test_global_source_without_a_profile_source(self):
         from wanted_search.process import _item_source_language
 

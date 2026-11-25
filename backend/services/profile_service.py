@@ -42,10 +42,24 @@ _COMBINE_LANG_RE = _re.compile(r"^[a-z]{2,3}\Z")
 _SOURCE_LANG_RE = _re.compile(r"^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?\Z")
 
 
+def normalize_source_tag(value) -> str | None:
+    """A language tag with a lower-case primary subtag, or None if it is not one.
+
+    Profiles saved before the validation may hold "EN" or " de "; they stay
+    usable instead of blocking every later save.
+    """
+    if not isinstance(value, str):
+        return None
+    primary, sep, rest = value.strip().partition("-")
+    tag = primary.lower() + sep + rest
+    return tag if _SOURCE_LANG_RE.match(tag) else None
+
+
 def _clean_source_language(value) -> str:
-    if not isinstance(value, str) or not _SOURCE_LANG_RE.match(value):
+    tag = normalize_source_tag(value)
+    if tag is None:
         raise ProfileValidationError("source_language must be a language code like 'en' or 'pt-BR'")
-    return value
+    return tag
 
 
 def _clean_combine_languages(value) -> list[str]:
