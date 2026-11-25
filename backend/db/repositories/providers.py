@@ -11,7 +11,7 @@ import logging
 import os
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, or_, select
 
 from db.models.providers import ProviderCache, ProviderStats, SubtitleDownload
 from db.repositories.base import BaseRepository
@@ -195,6 +195,15 @@ class ProviderRepository(BaseRepository):
             return None
         return entry.decision_log_json
 
+    @staticmethod
+    def _is_type(subtitle_type: str):
+        """Filter for one subtitle type; rows from before the column count as full."""
+        if subtitle_type == "full":
+            return or_(
+                SubtitleDownload.subtitle_type == "full", SubtitleDownload.subtitle_type.is_(None)
+            )
+        return SubtitleDownload.subtitle_type == subtitle_type
+
     def _current_machine_translations(self, video_paths: list[str]) -> list[tuple[str, str, str]]:
         """``(video, language, format)`` whose LATEST download row is a machine translation.
 
@@ -202,6 +211,10 @@ class ProviderRepository(BaseRepository):
         genuine subtitle saved over a machine translation (same language and
         format, so the same file) must count as genuine again — as a
         translation source and when deciding what to retire or repair.
+
+        Only full-subtitle rows count: a forced/HI sidecar is a different file
+        with its own history, and a genuine one saved later must not make the
+        machine-translated main subtitle look genuine (#51).
         """
         latest: dict[tuple[str, str, str], str] = {}
         for start in range(0, len(video_paths), 500):
@@ -213,7 +226,7 @@ class ProviderRepository(BaseRepository):
                     SubtitleDownload.format,
                     SubtitleDownload.source,
                 )
-                .where(SubtitleDownload.file_path.in_(chunk))
+                .where(SubtitleDownload.file_path.in_(chunk), self._is_type("full"))
                 .order_by(SubtitleDownload.downloaded_at.desc(), SubtitleDownload.id.desc())
             )
             for path, lang, fmt, source in self.session.execute(stmt).all():
@@ -291,7 +304,9 @@ class ProviderRepository(BaseRepository):
             stats[name]["by_format"][fmt_key] = count
         return stats
 
-    def is_machine_translated(self, file_path: str, language: str, fmt: str = "") -> bool:
+    def is_machine_translated(
+        self, file_path: str, language: str, fmt: str = "", subtitle_type: str = "full"
+    ) -> bool:
         """Whether the subtitle serving ``file_path`` in ``language`` is our own.
 
         Provenance is not visible on disk — a Sublarr-translated ``.de.ass`` and
@@ -305,7 +320,8 @@ class ProviderRepository(BaseRepository):
         it; reading "any translation ever" would treat that genuine file as
         ours, and the re-seek would trash it for the next original it finds.
         ``fmt`` matters because our ASS and a later genuine SRT can sit next to
-        the same video — each file has its own history.
+        the same video — each file has its own history. The same holds for
+        ``subtitle_type``: a forced/HI sidecar is a separate file (#51).
 
         Keyed on the VIDEO path, which is what these rows carry (1 878 of 1 885
         on prod as of 2026-09-13; the handful of outliers hold the subtitle path
@@ -315,7 +331,9 @@ class ProviderRepository(BaseRepository):
             return False
         # Rows store the path as given; match it and its normalised form.
         paths = {file_path, os.path.normpath(file_path)}
-        stmt = select(SubtitleDownload.source).where(SubtitleDownload.file_path.in_(paths))
+        stmt = select(SubtitleDownload.source).where(
+            SubtitleDownload.file_path.in_(paths), self._is_type(subtitle_type or "full")
+        )
         if language:
             stmt = stmt.where(SubtitleDownload.language == language)
         if fmt:
