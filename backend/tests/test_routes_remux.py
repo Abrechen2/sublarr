@@ -920,8 +920,8 @@ class TestRunRemux:
 
         # Should have "running" then "failed"
         calls = mock_update.call_args_list
+        assert calls[1][0][1] == "failed"
         assert calls[1][1]["error"] == "Remux failed"
-        assert "mkvmerge" in calls[1][1]["error"]
 
     def test_run_remux_unexpected_error(self, client):
         import routes.remux as remux_mod
