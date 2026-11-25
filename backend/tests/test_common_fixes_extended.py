@@ -223,3 +223,54 @@ def test_overlap_fix_still_applies_to_srt():
     apply_common_fixes(subs, {"overlap_fix": True}, fmt="srt")
 
     assert subs.events[1].end == 1999
+
+
+# --- Forgejo #44: long_line_wrap on ASS/SSA ---------------------------------
+
+
+@pytest.mark.parametrize("fmt", ["ass", "ssa"])
+def test_long_line_wrap_keeps_override_tags_and_uses_ass_break(fmt):
+    """Wrapping must keep override tags and break with \\N, not a raw LF.
+
+    A raw LF inside a Dialogue field is written as a bare file line that is
+    no longer a Dialogue record, so everything after the first line was lost.
+    """
+    import pysubs2
+
+    from common_fixes import apply_common_fixes
+
+    subs = pysubs2.SSAFile()
+    subs.events.append(
+        pysubs2.SSAEvent(
+            start=1000,
+            end=5000,
+            text="{\\an8\\i1}This is a sufficiently long sentence with several words.",
+        )
+    )
+
+    apply_common_fixes(subs, {"long_line_wrap": True, "wrap_chars": 20}, fmt=fmt)
+
+    text = subs.events[0].text
+    assert "\n" not in text
+    assert text.startswith("{\\an8\\i1}")
+    assert "\\N" in text
+    assert text.replace("\\N", " ") == (
+        "{\\an8\\i1}This is a sufficiently long sentence with several words."
+    )
+    assert all(len(line) <= 20 for line in subs.events[0].plaintext.split("\n"))
+
+
+def test_long_line_wrap_keeps_inline_tag_between_words():
+    import pysubs2
+
+    from common_fixes import apply_common_fixes
+
+    subs = pysubs2.SSAFile()
+    subs.events.append(
+        pysubs2.SSAEvent(start=0, end=2000, text="aaaa bbbb {\\i1}cccc dddd{\\i0} eeee ffff")
+    )
+
+    apply_common_fixes(subs, {"long_line_wrap": True, "wrap_chars": 10}, fmt="ass")
+
+    assert "{\\i1}" in subs.events[0].text and "{\\i0}" in subs.events[0].text
+    assert subs.events[0].plaintext.replace("\n", " ") == "aaaa bbbb cccc dddd eeee ffff"
