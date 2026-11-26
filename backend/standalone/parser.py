@@ -62,6 +62,12 @@ ANIME_RELEASE_GROUPS: set[str] = {
 _RE_BRACKET_GROUP = re.compile(r"^\[([^\]]+)\]")
 _RE_CRC32 = re.compile(r"\[([0-9A-Fa-f]{8})\]")
 _RE_ABSOLUTE_EP = re.compile(r" - (\d{1,4})(?:\s|\.|\[|$)")
+# Season folder names that carry the number: "Season 9", "Staffel 03", "S04".
+_RE_SEASON_FOLDER = re.compile(
+    r"^(?:(?:season|staffel|saison|stagione|temporada|serie)[\s._-]*|s)(\d{1,3})$",
+    re.IGNORECASE,
+)
+_SPECIALS_FOLDERS = frozenset({"specials", "special", "extras"})
 
 
 def is_video_file(path: str) -> bool:
@@ -215,6 +221,11 @@ def parse_media_file(file_path: str) -> dict:
     if isinstance(season, list):
         season = season[0] if season else None
 
+    if media_type == "episode":
+        season, episode, episodes = _apply_local_numbering(
+            file_path, parent_dir, season, episode, episodes
+        )
+
     # Extract release group
     release_group = guess.get("release_group", "")
 
@@ -279,6 +290,43 @@ def group_files_by_series(file_paths: list[str]) -> dict[str, list[dict]]:
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
+
+def _season_from_folder(folder_name: str) -> int | None:
+    """Season number named by a season folder, or None."""
+    name = folder_name.strip()
+    if name.lower() in _SPECIALS_FOLDERS:
+        return 0
+    match = _RE_SEASON_FOLDER.match(name)
+    return int(match.group(1)) if match else None
+
+
+def _apply_local_numbering(
+    file_path: str,
+    parent_dir: str,
+    season: int | None,
+    episode: int | None,
+    episodes: list[int],
+) -> tuple[int | None, int | None, list[int]]:
+    """Season/episode from local metadata (GitHub #257).
+
+    An episode NFO is authoritative for both numbers. A missing season comes
+    from season.nfo, then the season folder name; guessit's own season is
+    kept when the filename has one.
+    """
+    from standalone.nfo_parser import parse_episode_nfo, parse_season_nfo
+
+    from_nfo = parse_episode_nfo(file_path)
+    if from_nfo is not None:
+        nfo_season, nfo_episode = from_nfo
+        if nfo_episode in episodes:
+            return nfo_season, nfo_episode, episodes
+        return nfo_season, nfo_episode, [nfo_episode]
+    if season is None and episode is not None:
+        season = parse_season_nfo(os.path.dirname(file_path))
+        if season is None:
+            season = _season_from_folder(parent_dir)
+    return season, episode, episodes
 
 
 def _extract_title(guess: dict, parent_dir: str) -> str:

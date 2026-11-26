@@ -240,3 +240,53 @@ def find_local_poster(folder_path: str) -> str | None:
         if parent != folder_path:
             poster = _find_file(parent, _POSTER_NAMES)
     return poster
+
+
+_SEASON_NFO_NAMES = ("season.nfo",)
+
+
+def _parse_root(nfo_path: str):
+    """Root element of an NFO, or None when it cannot be read (logged)."""
+    try:
+        return ET.parse(nfo_path).getroot()
+    except ET.ParseError as e:
+        logger.warning("Failed to parse NFO at %s: %s", nfo_path, e)
+    except Exception as e:
+        logger.warning("Unexpected error reading NFO at %s: %s", nfo_path, e)
+    return None
+
+
+def parse_episode_nfo(video_path: str) -> tuple[int, int] | None:
+    """(season, episode) from the episode NFO next to a video file.
+
+    Kodi/Jellyfin write ``<episodedetails>`` with ``<season>`` and
+    ``<episode>`` to ``<video basename>.nfo``. Returns None when the file is
+    missing, unreadable or lacks either number.
+    """
+    nfo_path = os.path.splitext(video_path)[0] + ".nfo"
+    if not os.path.isfile(nfo_path):
+        return None
+    root = _parse_root(nfo_path)
+    if root is None:
+        return None
+    if root.tag != "episodedetails":
+        root = root.find("episodedetails")
+        if root is None:
+            return None
+    season = _int_or_none(_text(root, "season"))
+    episode = _int_or_none(_text(root, "episode"))
+    if season is None or episode is None or season < 0 or episode < 0:
+        return None
+    return season, episode
+
+
+def parse_season_nfo(folder_path: str) -> int | None:
+    """Season number from ``season.nfo`` (``<seasonnumber>``) in a folder."""
+    nfo_path = _find_file(folder_path, _SEASON_NFO_NAMES)
+    if nfo_path is None:
+        return None
+    root = _parse_root(nfo_path)
+    if root is None:
+        return None
+    season = _int_or_none(_text(root, "seasonnumber"))
+    return season if season is not None and season >= 0 else None

@@ -5,7 +5,7 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.21.3] - 2026-11-25
+## [1.21.3] - 2026-11-26
 
 ### Security
 - **The API was open to everyone before the first setup** — Until UI auth was
@@ -30,6 +30,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   text in responses.
 
 ### Fixed
+- **Standalone mode ignored episode NFOs and season folders** — Files like
+  `Season 9/Show - 05.mkv` were parsed from the filename alone and came out
+  without a season (listed as E05). The season and episode from an episode
+  NFO now win; a missing season comes from `season.nfo`, then the season
+  folder name (`Season 9`, `Staffel 3`, `S04`, `Specials`) (#257).
 - **A webhook and the wanted search finishing the same item broke the
   request** — Both queued the same auto-sync; the second insert failed and
   left the database session unusable, so deleting the wanted item, restoring
