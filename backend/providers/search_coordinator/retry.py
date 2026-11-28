@@ -11,6 +11,7 @@ import threading
 from db.repositories.provider_account_pool import ProviderAccountPoolRepository
 from providers.base import (
     ProviderAuthError,
+    ProviderError,
     ProviderNotApplicableError,
     ProviderRateLimitError,
     ProviderTimeoutError,
@@ -191,12 +192,15 @@ class SearchRetryMixin:
                         exc_info=True,
                     )
                 else:
+                    # A ProviderError is the provider's own failure (HTTP 5xx,
+                    # site change): one line is enough. Anything else may be
+                    # our bug and keeps its traceback.
                     logger.warning(
                         "Provider %s search failed after %d attempts: %s",
                         name,
                         retries + 1,
                         e,
-                        exc_info=True,
+                        exc_info=not isinstance(e, ProviderError),
                     )
                     raise
 

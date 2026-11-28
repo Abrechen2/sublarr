@@ -68,6 +68,13 @@ _RE_SEASON_FOLDER = re.compile(
     re.IGNORECASE,
 )
 _SPECIALS_FOLDERS = frozenset({"specials", "special", "extras"})
+# TRaSH Guides naming schemes (Forgejo #83): "...[x265 10bit]-Group" ends with
+# the release group after a closing bracket, which guessit loses behind some
+# bracket tokens; anime puts the absolute number after SxxEyy; movies start
+# with "Title (Year)".
+_RE_TRAILING_GROUP = re.compile(r"\]-([A-Za-z0-9][A-Za-z0-9._@&+]*)$")
+_RE_TRASH_ABSOLUTE = re.compile(r" - S\d{1,2}E\d{1,3}(?:-?E\d{1,3})* - (\d{2,4}) - ", re.IGNORECASE)
+_RE_TITLE_YEAR_PREFIX = re.compile(r"^(.+?) \((?:19|20)\d{2}\)")
 
 
 def is_video_file(path: str) -> bool:
@@ -229,6 +236,17 @@ def parse_media_file(file_path: str) -> dict:
     # Extract release group
     release_group = guess.get("release_group", "")
 
+    stem = os.path.splitext(filename)[0]
+    if not release_group:
+        group_match = _RE_TRAILING_GROUP.search(stem)
+        release_group = group_match.group(1) if group_match else ""
+    if absolute_episode is None:
+        absolute_match = _RE_TRASH_ABSOLUTE.search(stem)
+        if absolute_match:
+            absolute_episode = int(absolute_match.group(1))
+    if media_type == "movie":
+        title = _movie_title_from_prefix(stem, title)
+
     # Calculate confidence
     confidence = _calculate_confidence(title, season, episode, media_type, guess)
 
@@ -241,7 +259,7 @@ def parse_media_file(file_path: str) -> dict:
         "absolute_episode": absolute_episode,
         "year": guess.get("year"),
         "release_group": release_group,
-        "source": guess.get("source", ""),
+        "source": _source(guess),
         "resolution": guess.get("screen_size", ""),
         "video_codec": guess.get("video_codec", ""),
         "is_anime": is_anime,
@@ -290,6 +308,32 @@ def group_files_by_series(file_paths: list[str]) -> dict[str, list[dict]]:
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
+
+def _movie_title_from_prefix(stem: str, title: str) -> str:
+    """Full movie title from a "Title (Year)" name when guessit cut it short.
+
+    guessit reads "Dune Part Two (2024)" as title "Dune", part 2; Radarr and
+    TRaSH names put the whole title before the year.
+    """
+    match = _RE_TITLE_YEAR_PREFIX.match(stem)
+    if not match or not title:
+        return title
+    prefix = match.group(1).strip()
+    if prefix.lower().startswith(title.lower()) and len(prefix) > len(title):
+        return prefix
+    return title
+
+
+def _source(guess: dict) -> str:
+    """guessit's source; a Remux without one is a Blu-ray rip."""
+    source = guess.get("source", "")
+    if source:
+        return source
+    other = guess.get("other") or []
+    if isinstance(other, str):
+        other = [other]
+    return "Blu-ray" if "Remux" in other else ""
 
 
 def _season_from_folder(folder_name: str) -> int | None:
