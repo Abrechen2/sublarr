@@ -154,6 +154,33 @@ def _spawn_pipeline(
     submit_background(_run)
 
 
+def _arr_exclusion(series_id, movie_id, settings) -> str | None:
+    """Why the series/movie is excluded from automatic work (Forgejo #83)."""
+    from services.arr_exclusions import movie_exclusion, series_exclusion, tag_labels
+
+    try:
+        if series_id:
+            from sonarr_client import get_sonarr_client
+
+            sonarr = get_sonarr_client()
+            series = sonarr.get_series_by_id(series_id) if sonarr else None
+            if series:
+                labels = tag_labels(sonarr, getattr(settings, "sonarr_exclude_tags", ""))
+                return series_exclusion(series, labels, settings)
+        elif movie_id:
+            from radarr_client import get_radarr_client
+
+            radarr = get_radarr_client()
+            movie = radarr.get_movie_by_id(movie_id) if radarr else None
+            if movie:
+                labels = tag_labels(radarr, getattr(settings, "radarr_exclude_tags", ""))
+                return movie_exclusion(movie, labels, settings)
+    except Exception:
+        # Unknown is not excluded: the scan applies the same check again.
+        logger.warning("Webhook pipeline: exclusion check failed", exc_info=True)
+    return None
+
+
 def _webhook_auto_pipeline(
     file_path: str,
     title: str,
@@ -193,6 +220,13 @@ def _webhook_auto_pipeline(
         time.sleep(delay)
 
     result_info = {"file_path": file_path, "title": title, "steps": []}
+
+    excluded = _arr_exclusion(series_id, movie_id, s)
+    if excluded:
+        logger.info("Webhook pipeline: skipping %s (%s)", title, excluded)
+        result_info["steps"].append({"skipped": excluded})
+        socketio.emit("webhook_completed", result_info)
+        return
 
     # Step 2: Auto-scan
     if s.webhook_auto_scan and series_id:

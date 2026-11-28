@@ -7,6 +7,7 @@ import { FormGroup } from '@/components/settings/FormGroup'
 import { Toggle } from '@/components/shared/Toggle'
 import { useConfig, useUpdateConfig } from '@/hooks/useApi'
 import { strVal, boolVal } from '@/lib/configUtils'
+import { ArrExclusionsFields } from './ArrExclusionsFields'
 import { inputStyle, SCAN_ENGINES, SectionSkeleton } from './shared'
 
 export function SearchScanAdvancedContent() {
@@ -129,6 +130,8 @@ export function SearchScanAdvancedContent() {
           disabled={updateConfig.isPending}
         />
       </FormGroup>
+
+      <ArrExclusionsFields config={config} save={save} disabled={updateConfig.isPending} />
 
       <FormGroup
         label={tS('automation_page.max_items_per_run')}

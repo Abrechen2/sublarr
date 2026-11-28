@@ -156,6 +156,14 @@ def _check_value(key: str, value: object) -> tuple[object, str | None]:
         ok, reason = validate_service_url(str(value), allow_loopback=key in LOOPBACK_URL_KEYS)
         if not ok:
             return None, f"Invalid URL for {key}: {reason}"
+    if key == "sonarr_exclude_series_types":
+        from services.arr_exclusions import SERIES_TYPES, parse_list
+
+        unknown = parse_list(value) - SERIES_TYPES
+        if unknown:
+            return None, (
+                f"sonarr_exclude_series_types takes {sorted(SERIES_TYPES)}, not {sorted(unknown)}"
+            )
     if key == "score_threshold_per_language" and str(value).strip():
         try:
             parsed = json.loads(str(value))

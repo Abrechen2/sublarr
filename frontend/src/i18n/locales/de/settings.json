@@ -970,7 +970,20 @@
     "scheduled_tasks_section": "Geplante Aufgaben",
     "ffmpeg_timeout_hint": "Maximale Wartezeit beim Herausziehen eingebetteter Untertitel. Dateien über 2 GB bekommen 60 s pro GB zusätzlich, weil ffmpeg die ganze Datei liest.",
     "metadata_engine_hint": "Tool für das Auslesen von Mediendatei-Metadaten. „auto“ wählt automatisch.",
-    "metadata_worker_hint": "Anzahl paralleler Threads für den Metadaten-Scan."
+    "metadata_worker_hint": "Anzahl paralleler Threads für den Metadaten-Scan.",
+    "sonarr_exclude_tags": "Sonarr-Tags ausschließen",
+    "sonarr_exclude_tags_hint": "Serien mit einem dieser Sonarr-Tags (kommagetrennt) kommen nicht in die Wanted-Liste und werden nicht automatisch bearbeitet.",
+    "sonarr_exclude_series_types": "Serientypen ausschließen",
+    "sonarr_exclude_series_types_hint": "Serien dieser Sonarr-Typen kommen nicht in die Wanted-Liste.",
+    "series_type_standard": "Standard",
+    "series_type_anime": "Anime",
+    "series_type_daily": "Täglich",
+    "sonarr_only_monitored": "Nur beobachtete Serien (Sonarr)",
+    "sonarr_only_monitored_hint": "Nur Serien und Folgen, die in Sonarr beobachtet werden, kommen in die Wanted-Liste.",
+    "radarr_exclude_tags": "Radarr-Tags ausschließen",
+    "radarr_exclude_tags_hint": "Filme mit einem dieser Radarr-Tags (kommagetrennt) kommen nicht in die Wanted-Liste und werden nicht automatisch bearbeitet.",
+    "radarr_only_monitored": "Nur beobachtete Filme (Radarr)",
+    "radarr_only_monitored_hint": "Nur Filme, die in Radarr beobachtet werden, kommen in die Wanted-Liste."
   },
   "scoring_tab": {
     "presets_title": "Schnellstart: Preset anwenden",

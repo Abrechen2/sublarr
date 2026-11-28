@@ -970,7 +970,20 @@
     "scheduled_tasks_section": "Scheduled Tasks",
     "ffmpeg_timeout_hint": "Maximum wait time for extracting an embedded subtitle. Files over 2 GB get 60 s per GB on top, because ffmpeg reads the whole file.",
     "metadata_engine_hint": "Tool used to read media file metadata. \"auto\" picks one automatically.",
-    "metadata_worker_hint": "Number of parallel threads for the metadata scan."
+    "metadata_worker_hint": "Number of parallel threads for the metadata scan.",
+    "sonarr_exclude_tags": "Exclude Sonarr tags",
+    "sonarr_exclude_tags_hint": "Series with any of these Sonarr tags (comma-separated) stay off the Wanted list and get no automatic work.",
+    "sonarr_exclude_series_types": "Exclude series types",
+    "sonarr_exclude_series_types_hint": "Series of these Sonarr types stay off the Wanted list.",
+    "series_type_standard": "Standard",
+    "series_type_anime": "Anime",
+    "series_type_daily": "Daily",
+    "sonarr_only_monitored": "Monitored series only (Sonarr)",
+    "sonarr_only_monitored_hint": "Only series and episodes monitored in Sonarr go on the Wanted list.",
+    "radarr_exclude_tags": "Exclude Radarr tags",
+    "radarr_exclude_tags_hint": "Movies with any of these Radarr tags (comma-separated) stay off the Wanted list and get no automatic work.",
+    "radarr_only_monitored": "Monitored movies only (Radarr)",
+    "radarr_only_monitored_hint": "Only movies monitored in Radarr go on the Wanted list."
   },
   "scoring_tab": {
     "presets_title": "Quick Start: Apply a Preset",

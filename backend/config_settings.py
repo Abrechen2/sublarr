@@ -382,6 +382,13 @@ class UISettings(BaseModel):
     wanted_scan_interval_hours: int = 0  # 0 = disabled; event-driven
     wanted_anime_only: bool = True
     wanted_anime_movies_only: bool = False  # Filter Radarr movies by anime tag
+    # Sonarr/Radarr exclusions like Bazarr's (Forgejo #83); all off by default.
+    # Tags and series types are comma-separated, matched case-insensitively.
+    sonarr_exclude_tags: str = ""
+    sonarr_exclude_series_types: str = ""  # any of: standard, anime, daily
+    sonarr_only_monitored: bool = False
+    radarr_exclude_tags: str = ""
+    radarr_only_monitored: bool = False
     wanted_scan_on_startup: bool = False
     wanted_auto_extract: bool = False  # Auto-extract embedded subs during wanted scan
     wanted_auto_translate: bool = False  # Auto-translate after auto-extract

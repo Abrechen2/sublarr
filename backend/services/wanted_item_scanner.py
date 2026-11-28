@@ -19,6 +19,7 @@ from config import get_settings, map_path
 from db.profiles import get_movie_profile, get_series_profile
 from db.providers import is_machine_translated
 from db.wanted import get_wanted_for_series, upsert_wanted_item
+from services.arr_exclusions import episode_excluded, movie_exclusion, series_exclusion, tag_labels
 from services.scheduler.cancellation import abort_requested
 from services.suspect_sidecars import existing_ignoring_suspects, note_sparse_sidecar
 from translator import (
@@ -310,6 +311,12 @@ def scan_radarr_movie(
 
     movie_id = movie.get("id")
     movie_title = movie.get("title", f"Movie {movie_id}")
+    reason = movie_exclusion(
+        movie, tag_labels(radarr, getattr(settings, "radarr_exclude_tags", "")), settings
+    )
+    if reason:
+        logger.info("Wanted scan: skipping %s (%s)", movie_title, reason)
+        return added, updated, scanned_paths
 
     file_path = None
     movie_file = movie.get("movieFile")
@@ -438,6 +445,13 @@ def scan_sonarr_series(
         series_info = sonarr.get_series_by_id(series_id) or {}
 
     series_title = series_info.get("title", f"Series {series_id}")
+    reason = series_exclusion(
+        series_info, tag_labels(sonarr, getattr(settings, "sonarr_exclude_tags", "")), settings
+    )
+    if reason:
+        # No paths: the full scan's cleanup drops the series' wanted rows.
+        logger.info("Wanted scan: skipping %s (%s)", series_title, reason)
+        return 0, 0, set()
     episodes = sonarr.list_episodes(series_id)
     if not isinstance(episodes, list):
         # Sonarr did not answer. The series' rows count as seen: an empty
@@ -465,7 +479,7 @@ def scan_sonarr_series(
     episode_data = []
     missing: list[tuple[str, str]] = []
     for ep in episodes:
-        if not ep.get("hasFile"):
+        if not ep.get("hasFile") or episode_excluded(ep, settings):
             continue
 
         episode_id = ep.get("id")
