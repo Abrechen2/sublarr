@@ -5,6 +5,34 @@ All notable changes to Sublarr are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.22.0] - 2026-11-28
+
+### Added
+- **Keep Sonarr/Radarr items off the Wanted list** — Settings → Automation →
+  Search & Scan (advanced) gains the exclusions Bazarr offers and the TRaSH
+  setup guide recommends: Sonarr and Radarr tags (comma-separated, any case),
+  Sonarr series types (Standard, Anime, Daily) and "monitored only" for series,
+  episodes and movies. Excluded items are skipped by the wanted scan, their
+  existing rows go at the next full scan, and the webhook pipeline skips them
+  too. Everything is off by default.
+
+### Fixed
+- **Wanted scans failed after upgrading an older install** — Installs first set
+  up before 1.19 run without Alembic tracking, and four columns added since
+  (`language_profiles.prefer_signs`/`download_full`,
+  `subtitle_downloads.quality_accepted`, `glossary_entries.target_language`)
+  were never added to them, so every Sonarr and Radarr wanted scan stopped with
+  "column … does not exist". Sublarr now adds every model column such a
+  database lacks at startup, and a test catches a forgotten one.
+- **TRaSH Guides file names** — Files renamed with the TRaSH naming schemes
+  keep their release group after the bracket tokens (`[…][x265]-Group`), anime
+  files give their absolute episode (`S01E05 - 005 -`), movie titles keep words
+  guessit dropped (`Dune Part Two (2024)`), and Remux counts as Blu-ray source.
+- **Provider failures filled the log** — A provider that answers with an HTTP
+  error now logs one line instead of a full traceback per search.
+- **Advanced settings count** — Search & Scan said "9 advanced settings" while
+  it showed more; the count now follows the rows actually shown.
+
 ## [1.21.3] - 2026-11-26
 
 ### Security
