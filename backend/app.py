@@ -48,6 +48,10 @@ def _patch_pre_alembic_columns(engine, inspect_fn) -> None:
 
     create_all() is a no-op on existing tables, so DBs created before Alembic
     was introduced may be missing columns added via later migrations.
+
+    The explicit list below predates db/untracked_columns.py, which now adds
+    any remaining model column automatically; new columns need no entry here
+    unless they need DDL the model cannot express.
     """
     import logging as _logging
 
@@ -181,15 +185,34 @@ def _patch_pre_alembic_columns(engine, inspect_fn) -> None:
         if "series_key" not in existing:
             patches.append("ALTER TABLE subtitle_automation_queue ADD COLUMN series_key INTEGER")
 
-    if not patches:
-        return
+    if patches:
+        with engine.connect() as conn:
+            for stmt in patches:
+                conn.execute(text(stmt))
+            conn.commit()
 
-    with engine.connect() as conn:
-        for stmt in patches:
-            conn.execute(text(stmt))
-        conn.commit()
+    # Every other model column the tables still lack, derived from the models
+    # (db/untracked_columns.py). The hand-written list above keeps the DDL it
+    # has always run; this pass catches the columns a release forgot to add
+    # there — four of them from 1.19-1.21 stopped every wanted scan.
+    import db.models  # noqa: F401 - registers every model on the metadata
+    from db.untracked_columns import missing_column_ddl
+    from extensions import db as _sa_db
 
-    _log.info("Pre-Alembic DB: patched %d missing column(s)", len(patches))
+    derived = missing_column_ddl(inspect_fn(engine), _sa_db.metadata, engine.dialect)
+    if derived:
+        with engine.connect() as conn:
+            for stmt in derived:
+                conn.execute(text(stmt))
+            conn.commit()
+        _log.warning(
+            "Pre-Alembic DB: added %d model column(s) the patch list lacked: %s",
+            len(derived),
+            ", ".join(f"{s.split()[2]}.{s.split()[5]}" for s in derived),
+        )
+
+    if patches:
+        _log.info("Pre-Alembic DB: patched %d missing column(s)", len(patches))
 
 
 _fallback_plugins_dir: str | None = None
