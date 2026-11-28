@@ -10,6 +10,21 @@ import { strVal, boolVal } from '@/lib/configUtils'
 import { ArrExclusionsFields } from './ArrExclusionsFields'
 import { inputStyle, SCAN_ENGINES, SectionSkeleton } from './shared'
 
+// Advanced rows that always show: ffmpeg timeout, metadata engine/workers,
+// parallel media processes, both anime filters, the five Sonarr/Radarr
+// exclusions, max items, search order, provider budget, adaptive backoff.
+const ALWAYS_SHOWN_ADVANCED_ROWS = 15
+
+/** How many advanced rows the Search & Scan section shows for this config. */
+export function searchScanAdvancedCount(config: unknown): number {
+  const budget = boolVal(config, 'provider_budget_enabled', true)
+  const burst = budget && strVal(config, 'provider_budget_stretch_mode', 'stretch') === 'burst'
+  const backoff = boolVal(config, 'wanted_adaptive_backoff_enabled', false)
+  return (
+    ALWAYS_SHOWN_ADVANCED_ROWS + (budget ? 1 : 0) + (burst ? 1 : 0) + (backoff ? 2 : 0)
+  )
+}
+
 export function SearchScanAdvancedContent() {
   const { t: tS } = useTranslation('settings')
   const { data: config, isLoading } = useConfig()

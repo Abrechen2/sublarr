@@ -67,6 +67,7 @@ export function ArrExclusionsFields({ config, save, disabled }: Props) {
       <FormGroup
         label={t('automation_page.sonarr_exclude_tags')}
         hint={t('automation_page.sonarr_exclude_tags_hint')}
+        advanced
         htmlFor="sonarr-exclude-tags"
         data-testid="form-group-sonarr-exclude-tags"
       >
@@ -82,14 +83,19 @@ export function ArrExclusionsFields({ config, save, disabled }: Props) {
       <FormGroup
         label={t('automation_page.sonarr_exclude_series_types')}
         hint={t('automation_page.sonarr_exclude_series_types_hint')}
+        advanced
         data-testid="form-group-sonarr-exclude-series-types"
       >
-        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+        <div className="flex flex-wrap gap-4">
           {SERIES_TYPES.map((type) => (
-            <label key={type} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <label
+              key={type}
+              className="flex items-center gap-1.5 text-[13px] text-[var(--text-primary)]"
+            >
               <input
                 type="checkbox"
                 data-testid={`checkbox-exclude-series-type-${type}`}
+                className="h-4 w-4 accent-[var(--accent)]"
                 checked={excludedTypes.includes(type)}
                 disabled={disabled}
                 onChange={(e) => toggleType(type, e.target.checked)}
@@ -103,6 +109,7 @@ export function ArrExclusionsFields({ config, save, disabled }: Props) {
       <FormGroup
         label={t('automation_page.sonarr_only_monitored')}
         hint={t('automation_page.sonarr_only_monitored_hint')}
+        advanced
         data-testid="form-group-sonarr-only-monitored"
       >
         <Toggle
@@ -115,6 +122,7 @@ export function ArrExclusionsFields({ config, save, disabled }: Props) {
       <FormGroup
         label={t('automation_page.radarr_exclude_tags')}
         hint={t('automation_page.radarr_exclude_tags_hint')}
+        advanced
         htmlFor="radarr-exclude-tags"
         data-testid="form-group-radarr-exclude-tags"
       >
@@ -130,6 +138,7 @@ export function ArrExclusionsFields({ config, save, disabled }: Props) {
       <FormGroup
         label={t('automation_page.radarr_only_monitored')}
         hint={t('automation_page.radarr_only_monitored_hint')}
+        advanced
         data-testid="form-group-radarr-only-monitored"
       >
         <Toggle

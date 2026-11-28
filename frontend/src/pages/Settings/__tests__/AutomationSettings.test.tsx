@@ -45,10 +45,12 @@ vi.mock('@/pages/Settings/EventsTab', () => ({
 }))
 
 const mockMutate = vi.fn()
+const configOverrides = vi.hoisted(() => ({}) as Record<string, unknown>)
 
 vi.mock('@/hooks/useApi', () => ({
   useConfig: () => ({
     data: {
+      ...configOverrides,
       wanted_search_interval_hours: '6',
       webhook_auto_search: 'true',
       wanted_search_on_startup: 'false',
@@ -238,6 +240,37 @@ describe('AutomationSettings', () => {
     expect(
       wrapper.querySelector('[data-testid="settings-section-advanced-toggle"]'),
     ).toBeInTheDocument()
+  })
+
+  it('Search & Scan advanced count matches the advanced rows it shows', () => {
+    renderPage()
+    const wrapper = screen.getByTestId('section-search-scan')
+    const toggle = wrapper.querySelector(
+      '[data-testid="settings-section-advanced-toggle"]',
+    ) as HTMLElement
+    fireEvent.click(toggle)
+    const content = wrapper.querySelector(
+      '[data-testid="settings-section-advanced-content"]',
+    ) as HTMLElement
+    const rows = content.querySelectorAll('[data-testid="form-group-advanced-badge"]')
+    expect(toggle.textContent).toContain(String(rows.length))
+  })
+
+  it('advanced count follows the rows that only show for some settings', () => {
+    Object.assign(configOverrides, {
+      provider_budget_enabled: true,
+      provider_budget_stretch_mode: 'burst',
+    })
+    renderPage()
+    const wrapper = screen.getByTestId('section-search-scan')
+    const toggle = wrapper.querySelector(
+      '[data-testid="settings-section-advanced-toggle"]',
+    ) as HTMLElement
+    fireEvent.click(toggle)
+    const rows = wrapper.querySelectorAll('[data-testid="form-group-advanced-badge"]')
+    expect(rows.length).toBe(17)
+    expect(toggle.textContent).toContain('17')
+    for (const key of Object.keys(configOverrides)) delete configOverrides[key]
   })
 
   it('Upgrade Rules section has an advanced toggle (advancedCount=1)', () => {

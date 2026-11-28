@@ -14,11 +14,16 @@
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Search, ArrowUpCircle, Clock, Zap } from 'lucide-react'
+import { useConfig } from '@/hooks/useApi'
 import { SettingsDetailLayout } from '@/components/settings/SettingsDetailLayout'
 import { SettingsSection } from '@/components/settings/SettingsSection'
 import { FormLayout } from '@/components/settings/layouts'
 import type { FormSectionDef } from '@/components/settings/layouts'
-import { SearchScanContent, SearchScanAdvancedContent } from './automation/SearchScanSection'
+import {
+  SearchScanContent,
+  SearchScanAdvancedContent,
+  searchScanAdvancedCount,
+} from './automation/SearchScanSection'
 import { UpgradeRulesContent, UpgradeRulesAdvancedContent } from './automation/UpgradeRulesSection'
 import { WebhookContent, ScheduledTasksContent } from './automation/WebhookSection'
 
@@ -27,7 +32,7 @@ import { WebhookContent, ScheduledTasksContent } from './automation/WebhookSecti
 // SettingsSections, but they appear in the TOC for navigation parity so
 // users have a single mental map of what lives on this page.
 const SECTIONS: readonly FormSectionDef[] = [
-  { id: 'search-scan',      titleKey: 'automation_page.search_scan_section',     advancedCount: 9 },
+  { id: 'search-scan',      titleKey: 'automation_page.search_scan_section' },
   { id: 'upgrade-rules',    titleKey: 'automation_page.upgrade_rules_section',   advancedCount: 1 },
   { id: 'webhook',          titleKey: 'automation_page.webhook_section' },
   { id: 'post-processing',  titleKey: 'post_processing_page.title' },
@@ -40,6 +45,11 @@ const SECTIONS: readonly FormSectionDef[] = [
 export function AutomationSettings() {
   const { t } = useTranslation('settings')
   const { t: tS } = useTranslation('settings')
+  const { data: config } = useConfig()
+  const searchScanAdvanced = searchScanAdvancedCount(config)
+  const sections = SECTIONS.map((section) =>
+    section.id === 'search-scan' ? { ...section, advancedCount: searchScanAdvanced } : section,
+  )
 
   return (
     <SettingsDetailLayout
@@ -49,7 +59,7 @@ export function AutomationSettings() {
         'Search scheduling, upgrade rules, pipeline, and sidecar settings',
       )}
     >
-      <FormLayout sections={SECTIONS}>
+      <FormLayout sections={sections}>
 
       {/* 1. Search & Scan */}
       <section id="search-scan" data-testid="settings.automation.section-search-scan">
@@ -62,7 +72,7 @@ export function AutomationSettings() {
           )}
           icon={<Search size={16} style={{ color: 'var(--accent)' }} />}
           advanced={<SearchScanAdvancedContent />}
-          advancedCount={9}
+          advancedCount={searchScanAdvanced}
         >
           <SearchScanContent />
         </SettingsSection>
