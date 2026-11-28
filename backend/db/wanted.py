@@ -209,6 +209,12 @@ def delete_wanted_items(file_paths: list):
         _get_repo().delete_wanted_by_file_path(fp)
 
 
+def delete_wanted_for_arr_item(**kwargs) -> int:
+    """Delete the rows of one Sonarr series / episode set or Radarr movie
+    within one instance — see ``WantedRepository.delete_wanted_for_arr_item``."""
+    return _get_repo().delete_wanted_for_arr_item(**kwargs)
+
+
 def delete_wanted_item(item_id: int):
     """Delete a single wanted item."""
     return _get_repo().delete_wanted_item(item_id)

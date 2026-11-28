@@ -526,6 +526,34 @@ class WantedRepository(BaseRepository, _WantedUpsertMixin, _WantedUpdatesMixin):
         self._commit()
         return True
 
+    def delete_wanted_for_arr_item(
+        self,
+        *,
+        instance_name: str = "",
+        sonarr_series_id: int | None = None,
+        sonarr_episode_ids: list[int] | None = None,
+        radarr_movie_id: int | None = None,
+    ) -> int:
+        """Delete the rows of one Sonarr series / episode set or Radarr movie.
+
+        Scoped to one *arr instance: Sonarr and Radarr ids are only unique
+        within an instance. Returns the number of rows deleted.
+        """
+        conditions = [func.coalesce(WantedItem.instance_name, "") == (instance_name or "")]
+        if sonarr_series_id is not None:
+            conditions.append(WantedItem.sonarr_series_id == sonarr_series_id)
+        if sonarr_episode_ids is not None:
+            if not sonarr_episode_ids:
+                return 0
+            conditions.append(WantedItem.sonarr_episode_id.in_(sonarr_episode_ids))
+        if radarr_movie_id is not None:
+            conditions.append(WantedItem.radarr_movie_id == radarr_movie_id)
+        if len(conditions) == 1:
+            raise ValueError("delete_wanted_for_arr_item needs a series, episodes or movie")
+        result = self.session.execute(delete(WantedItem).where(*conditions))
+        self._commit()
+        return result.rowcount
+
     def delete_wanted_by_file_path(self, file_path: str) -> int:
         """Delete wanted items by file path. Returns count deleted."""
         stmt = delete(WantedItem).where(WantedItem.file_path == file_path)

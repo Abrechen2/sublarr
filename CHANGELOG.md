@@ -12,9 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Search & Scan (advanced) gains the exclusions Bazarr offers and the TRaSH
   setup guide recommends: Sonarr and Radarr tags (comma-separated, any case),
   Sonarr series types (Standard, Anime, Daily) and "monitored only" for series,
-  episodes and movies. Excluded items are skipped by the wanted scan, their
-  existing rows go at the next full scan, and the webhook pipeline skips them
-  too. Everything is off by default.
+  episodes and movies. Excluded items are skipped by the wanted scan, which
+  removes their existing rows when it next visits them (at the latest in the
+  next full scan), also when that is most of the library; the webhook pipeline
+  skips them too. Everything is off by default.
 
 ### Fixed
 - **Wanted scans failed after upgrading an older install** — Installs first set

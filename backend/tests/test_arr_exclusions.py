@@ -112,7 +112,7 @@ def _scan_settings(**kw):
     return _settings(**{**base, **kw})
 
 
-def test_scanner_skips_an_excluded_series_without_listing_episodes(monkeypatch):
+def test_scanner_skips_an_excluded_series_without_listing_episodes(app_ctx, monkeypatch):
     from services import wanted_item_scanner as scanner
 
     sonarr = SimpleNamespace(
@@ -127,7 +127,7 @@ def test_scanner_skips_an_excluded_series_without_listing_episodes(monkeypatch):
     assert result == (0, 0, set())
 
 
-def test_scanner_skips_an_excluded_movie():
+def test_scanner_skips_an_excluded_movie(app_ctx):
     from services import wanted_item_scanner as scanner
 
     radarr = SimpleNamespace(
@@ -200,3 +200,95 @@ def test_webhook_pipeline_skips_an_excluded_series():
 
     payload = sio.emit.call_args.args[1]
     assert payload["steps"] == [{"skipped": "tag 'no-subs'"}]
+
+
+# ── Excluded items lose their wanted rows in the scan itself ────────────────
+# Leaving them to the full scan's cleanup failed on real data (RC 1.22.0-rc.1,
+# 2026-11-28): excluding 131 series meant pruning more than half the rows, the
+# cleanup fuse refused it, and the 1756 rows stayed. An exclusion is a
+# deliberate removal, so the scan deletes the rows directly.
+
+
+def _row(path, **kw):
+    from db.wanted import upsert_wanted_item
+
+    upsert_wanted_item("episode" if "sonarr_series_id" in kw else "movie", path, **kw)
+
+
+def _paths():
+    from db.wanted import get_wanted_items
+
+    return {i["file_path"] for i in get_wanted_items(per_page=1000)["data"]}
+
+
+def test_excluded_series_rows_are_deleted_by_the_scan(app_ctx):
+    from services import wanted_item_scanner as scanner
+
+    _row("/tv/a/e1.mkv", sonarr_series_id=7, sonarr_episode_id=1, instance_name="main")
+    _row("/tv/a/e2.mkv", sonarr_series_id=7, sonarr_episode_id=2, instance_name="main")
+    _row("/tv/other/e1.mkv", sonarr_series_id=8, sonarr_episode_id=3, instance_name="main")
+    # Same Sonarr id on a second instance is a different series.
+    _row("/tv2/a/e1.mkv", sonarr_series_id=7, sonarr_episode_id=1, instance_name="4k")
+    sonarr = SimpleNamespace(url="http://sonarr", get_tags=lambda: [{"id": 1, "label": "no-subs"}])
+
+    result = scanner.scan_sonarr_series(
+        sonarr,
+        7,
+        _scan_settings(sonarr_exclude_tags="no-subs"),
+        series_info=_series(tags=[1]),
+        instance_name="main",
+    )
+
+    assert result == (0, 0, set())
+    assert _paths() == {"/tv/other/e1.mkv", "/tv2/a/e1.mkv"}
+
+
+def test_unmonitored_episode_rows_are_deleted_by_the_scan(app_ctx, monkeypatch):
+    from services import wanted_item_scanner as scanner
+
+    _row("/tv/a/e1.mkv", sonarr_series_id=7, sonarr_episode_id=1)
+    _row("/tv/a/e2.mkv", sonarr_series_id=7, sonarr_episode_id=2)
+    episodes = [
+        {"id": 1, "hasFile": True, "monitored": True, "episodeFile": {"path": "/nope/e1.mkv"}},
+        {"id": 2, "hasFile": True, "monitored": False, "episodeFile": {"path": "/nope/e2.mkv"}},
+    ]
+    sonarr = SimpleNamespace(
+        url="http://sonarr", get_tags=lambda: [], list_episodes=lambda sid: episodes
+    )
+    monkeypatch.setattr(scanner, "get_series_profile", lambda sid: {"target_languages": ["de"]})
+
+    scanner.scan_sonarr_series(
+        sonarr,
+        7,
+        _scan_settings(sonarr_only_monitored=True, use_embedded_subs=False),
+        series_info=_series(),
+    )
+
+    assert _paths() == {"/tv/a/e1.mkv"}
+
+
+def test_excluded_movie_rows_are_deleted_by_the_scan(app_ctx):
+    from services import wanted_item_scanner as scanner
+
+    _row("/movies/a.mkv", radarr_movie_id=3)
+    _row("/movies/b.mkv", radarr_movie_id=4)
+    radarr = SimpleNamespace(url="http://radarr", get_tags=lambda: [])
+    movie = {"id": 3, "title": "Film", "hasFile": True, "monitored": False, "tags": []}
+
+    scanner.scan_radarr_movie(radarr, movie, _scan_settings(radarr_only_monitored=True))
+
+    assert _paths() == {"/movies/b.mkv"}
+
+
+def test_without_exclusions_no_rows_are_deleted(app_ctx):
+    from services import wanted_item_scanner as scanner
+
+    _row("/movies/a.mkv", radarr_movie_id=3)
+    radarr = SimpleNamespace(
+        url="http://radarr", get_tags=lambda: [], get_movie_file=lambda f: None
+    )
+    movie = {"id": 3, "title": "Film", "hasFile": True, "monitored": False, "tags": []}
+
+    scanner.scan_radarr_movie(radarr, movie, _scan_settings())
+
+    assert _paths() == {"/movies/a.mkv"}

@@ -18,7 +18,7 @@ from ass_utils import (
 from config import get_settings, map_path
 from db.profiles import get_movie_profile, get_series_profile
 from db.providers import is_machine_translated
-from db.wanted import get_wanted_for_series, upsert_wanted_item
+from db.wanted import delete_wanted_for_arr_item, get_wanted_for_series, upsert_wanted_item
 from services.arr_exclusions import episode_excluded, movie_exclusion, series_exclusion, tag_labels
 from services.scheduler.cancellation import abort_requested
 from services.suspect_sidecars import existing_ignoring_suspects, note_sparse_sidecar
@@ -315,7 +315,12 @@ def scan_radarr_movie(
         movie, tag_labels(radarr, getattr(settings, "radarr_exclude_tags", "")), settings
     )
     if reason:
-        logger.info("Wanted scan: skipping %s (%s)", movie_title, reason)
+        removed = delete_wanted_for_arr_item(
+            instance_name=instance_name or "", radarr_movie_id=movie_id
+        )
+        logger.info(
+            "Wanted scan: skipping %s (%s), %d row(s) removed", movie_title, reason, removed
+        )
         return added, updated, scanned_paths
 
     file_path = None
@@ -449,8 +454,15 @@ def scan_sonarr_series(
         series_info, tag_labels(sonarr, getattr(settings, "sonarr_exclude_tags", "")), settings
     )
     if reason:
-        # No paths: the full scan's cleanup drops the series' wanted rows.
-        logger.info("Wanted scan: skipping %s (%s)", series_title, reason)
+        # Deleted here, not left to the full scan's cleanup: excluding a large
+        # part of the library trips the cleanup fuse, which then prunes
+        # nothing (RC 1.22.0-rc.1). The exclusion is the user's decision.
+        removed = delete_wanted_for_arr_item(
+            instance_name=instance_name or "", sonarr_series_id=series_id
+        )
+        logger.info(
+            "Wanted scan: skipping %s (%s), %d row(s) removed", series_title, reason, removed
+        )
         return 0, 0, set()
     episodes = sonarr.list_episodes(series_id)
     if not isinstance(episodes, list):
@@ -478,8 +490,12 @@ def scan_sonarr_series(
     # Collect episode file paths for batch ffprobe
     episode_data = []
     missing: list[tuple[str, str]] = []
+    excluded_episode_ids = []
     for ep in episodes:
-        if not ep.get("hasFile") or episode_excluded(ep, settings):
+        if not ep.get("hasFile"):
+            continue
+        if episode_excluded(ep, settings):
+            excluded_episode_ids.append(ep.get("id"))
             continue
 
         episode_id = ep.get("id")
@@ -504,6 +520,11 @@ def scan_sonarr_series(
             continue
 
         episode_data.append((ep, mapped_path))
+
+    if excluded_episode_ids:
+        delete_wanted_for_arr_item(
+            instance_name=instance_name or "", sonarr_episode_ids=excluded_episode_ids
+        )
 
     _warn_unmapped(series_title, missing, len(missing) + len(episode_data))
 
